@@ -1,4 +1,4 @@
-.PHONY: help setup init-env dev dev-api dev-web docker-up docker-up-llm docker-down docker-reset db-migrate db-seed db-studio db-reset logs clean env-check generate-secret test test-api test-web test-cov lint format
+.PHONY: help setup init-env dev dev-api dev-web docker-up docker-up-llm docker-down docker-reset db-migrate db-seed db-seed-catalog db-regenerate-embeddings db-studio db-reset logs clean env-check generate-secret test test-api test-web test-cov lint format
 
 help: ## Show this help message
 	@echo "Available commands:"
@@ -75,6 +75,16 @@ db-seed: ## Seed the database
 	@echo "Seeding database..."
 	bunx tsx prisma/seed.ts
 	@echo "Seeding complete"
+
+db-seed-catalog: ## Seed catalog with services (for invoice analysis testing)
+	@echo "Seeding catalog..."
+	bunx tsx prisma/seed-catalog.ts
+	@echo "Catalog seeding complete"
+
+db-regenerate-embeddings: ## Regenerate service embeddings using OpenAI (requires LiteLLM)
+	@echo "Regenerating embeddings..."
+	bunx tsx prisma/regenerate-embeddings.ts
+	@echo "Embeddings regenerated"
 
 db-studio: ## Open Prisma Studio
 	@echo "Opening Prisma Studio..."

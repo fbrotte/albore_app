@@ -70,3 +70,6 @@ prisma/migrations/**
 packages/shared/src/**/*.js
 packages/shared/src/**/*.js.map
 packages/shared/src/**/*.d.ts
+
+# Uploads
+apps/api/uploads/

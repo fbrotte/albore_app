@@ -1,8 +1,22 @@
 import { createTRPCReact, httpBatchLink } from '@trpc/react-query'
+import { createTRPCClient } from '@trpc/client'
 import type { AppRouter } from '../../../api/src/trpc/trpc.router'
 import { useAuthStore } from '../stores/auth.store'
 
 export const trpc = createTRPCReact<AppRouter>()
+
+// Vanilla client for use outside React components/hooks
+export const trpcClient = createTRPCClient<AppRouter>({
+  links: [
+    httpBatchLink({
+      url: '/trpc',
+      headers() {
+        const { accessToken } = useAuthStore.getState()
+        return accessToken ? { authorization: `Bearer ${accessToken}` } : {}
+      },
+    }),
+  ],
+})
 
 // Token refresh state to prevent multiple simultaneous refresh attempts
 let isRefreshing = false

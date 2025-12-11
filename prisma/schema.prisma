@@ -2,14 +2,18 @@
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
 generator client {
-  provider = "prisma-client-js"
-  output   = "../node_modules/.prisma/client"
+  provider        = "prisma-client-js"
+  output          = "../node_modules/.prisma/client"
+  previewFeatures = ["postgresqlExtensions"]
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [vector]
 }
+
+// === USER & AUTH ===
 
 enum UserRole {
   USER
@@ -26,6 +30,7 @@ model User {
   updatedAt DateTime @updatedAt
 
   refreshTokens RefreshToken[]
+  clients       Client[]
 
   @@map("users")
 }
@@ -41,4 +46,226 @@ model RefreshToken {
 
   @@index([userId])
   @@map("refresh_tokens")
+}
+
+// === CATALOG ===
+
+enum UnitType {
+  UNIT
+  HOUR
+  MONTH
+  USER
+  LINE
+  DEVICE
+}
+
+enum PricingType {
+  FIXED
+  PER_UNIT
+  TIERED
+  VOLUME
+}
+
+enum BillingType {
+  RECURRING
+  ONE_TIME
+  USAGE
+}
+
+model Category {
+  id           String    @id @default(cuid())
+  name         String
+  description  String?
+  icon         String?
+  displayOrder Int       @default(0)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  deletedAt    DateTime?
+
+  services Service[]
+
+  @@map("categories")
+}
+
+model Service {
+  id                   String                       @id @default(cuid())
+  categoryId           String
+  category             Category                     @relation(fields: [categoryId], references: [id])
+  name                 String
+  semanticDescription  String                       @db.Text
+  descriptionEmbedding Unsupported("vector(1536)")?
+  unitType             UnitType
+  unitLabel            String
+  pricingType          PricingType
+  basePrice            Decimal                      @db.Decimal(10, 2)
+  billingType          BillingType
+  isActive             Boolean                      @default(true)
+  createdAt            DateTime                     @default(now())
+  updatedAt            DateTime                     @updatedAt
+  deletedAt            DateTime?
+
+  pricingTiers      PricingTier[]
+  invoiceLines      InvoiceLine[]
+  analysisSummaries AnalysisSummary[]
+
+  @@index([categoryId])
+  @@map("services")
+}
+
+model PricingTier {
+  id          String   @id @default(cuid())
+  serviceId   String
+  service     Service  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  minQuantity Int
+  maxQuantity Int?
+  unitPrice   Decimal  @db.Decimal(10, 4)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([serviceId])
+  @@map("pricing_tiers")
+}
+
+// === CLIENTS & ANALYSES ===
+
+model Client {
+  id           String    @id @default(cuid())
+  userId       String
+  user         User      @relation(fields: [userId], references: [id])
+  name         String
+  company      String?
+  contactEmail String?
+  notes        String?   @db.Text
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  deletedAt    DateTime?
+
+  analyses Analysis[]
+
+  @@index([userId])
+  @@map("clients")
+}
+
+enum AnalysisStatus {
+  DRAFT
+  IMPORTING
+  MATCHING
+  REVIEW
+  COMPLETED
+}
+
+model Analysis {
+  id        String         @id @default(cuid())
+  clientId  String
+  client    Client         @relation(fields: [clientId], references: [id])
+  name      String
+  status    AnalysisStatus @default(DRAFT)
+  notes     String?        @db.Text
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+  deletedAt DateTime?
+
+  invoices  Invoice[]
+  summaries AnalysisSummary[]
+
+  @@index([clientId])
+  @@map("analyses")
+}
+
+// === INVOICES ===
+
+enum ExtractionStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  ERROR
+}
+
+model Invoice {
+  id               String           @id @default(cuid())
+  analysisId       String
+  analysis         Analysis         @relation(fields: [analysisId], references: [id], onDelete: Cascade)
+  vendorName       String
+  invoiceNumber    String?
+  invoiceDate      DateTime?
+  totalHt          Decimal?         @db.Decimal(12, 2)
+  totalTva         Decimal?         @db.Decimal(12, 2)
+  totalTtc         Decimal?         @db.Decimal(12, 2)
+  filePath         String
+  fileName         String
+  extractedRaw     Json?
+  extractionStatus ExtractionStatus @default(PENDING)
+  extractionError  String?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  lines InvoiceLine[]
+
+  @@index([analysisId])
+  @@map("invoices")
+}
+
+enum MatchStatus {
+  PENDING
+  AUTO
+  CONFIRMED
+  MANUAL
+  IGNORED
+}
+
+model InvoiceLine {
+  id               String      @id @default(cuid())
+  invoiceId        String
+  invoice          Invoice     @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  description      String      @db.Text
+  quantity         Decimal?    @db.Decimal(10, 2)
+  unitPrice        Decimal?    @db.Decimal(10, 4)
+  totalHt          Decimal     @db.Decimal(12, 2)
+  periodStart      DateTime?
+  periodEnd        DateTime?
+  matchedServiceId String?
+  matchedService   Service?    @relation(fields: [matchedServiceId], references: [id])
+  matchCandidates  Json?
+  matchStatus      MatchStatus @default(PENDING)
+  matchConfidence  Decimal?    @db.Decimal(5, 4)
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+
+  @@index([invoiceId])
+  @@index([matchedServiceId])
+  @@map("invoice_lines")
+}
+
+// === CONSOLIDATION ===
+
+enum BillingPattern {
+  FIXED
+  VARIABLE
+  ONE_TIME
+}
+
+model AnalysisSummary {
+  id               String         @id @default(cuid())
+  analysisId       String
+  analysis         Analysis       @relation(fields: [analysisId], references: [id], onDelete: Cascade)
+  matchedServiceId String?
+  matchedService   Service?       @relation(fields: [matchedServiceId], references: [id])
+  customLabel      String?
+  monthsCount      Int
+  totalHt          Decimal        @db.Decimal(12, 2)
+  avgMonthly       Decimal        @db.Decimal(12, 2)
+  minMonthly       Decimal        @db.Decimal(12, 2)
+  maxMonthly       Decimal        @db.Decimal(12, 2)
+  billingPattern   BillingPattern @default(FIXED)
+  ourPrice         Decimal?       @db.Decimal(12, 2)
+  ourPriceNote     String?
+  savingAmount     Decimal?       @db.Decimal(12, 2)
+  savingPercent    Decimal?       @db.Decimal(5, 2)
+  includeInReport  Boolean        @default(true)
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  @@index([analysisId])
+  @@index([matchedServiceId])
+  @@map("analysis_summaries")
 }

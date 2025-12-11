@@ -15,6 +15,14 @@ import { PythonModule } from './modules/python/python.module'
 import { LoggerModule } from './modules/logger/logger.module'
 // import { QueueModule } from './modules/queue/queue.module'; // Uncomment to enable
 import { TrpcModule } from './trpc/trpc.module'
+// Invoice Analysis modules
+import { StorageModule } from './modules/storage/storage.module'
+import { CatalogModule } from './modules/catalog/catalog.module'
+import { ClientsModule } from './modules/clients/clients.module'
+import { AnalysesModule } from './modules/analyses/analyses.module'
+import { InvoicesModule } from './modules/invoices/invoices.module'
+import { InvoiceLinesModule } from './modules/invoice-lines/invoice-lines.module'
+import { SummariesModule } from './modules/summaries/summaries.module'
 
 @Module({
   imports: [
@@ -44,6 +52,14 @@ import { TrpcModule } from './trpc/trpc.module'
     PythonModule,
     // QueueModule, // Uncomment to enable
     TrpcModule,
+    // Invoice Analysis modules
+    StorageModule,
+    CatalogModule,
+    ClientsModule,
+    AnalysesModule,
+    InvoicesModule,
+    InvoiceLinesModule,
+    SummariesModule,
   ],
   controllers: [AppController],
   providers: [

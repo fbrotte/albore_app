@@ -3,6 +3,7 @@ import { useIsAuthenticated, useAuthLoading } from './stores/auth.store'
 import LoginPage from './pages/LoginPage'
 import RegisterPage from './pages/RegisterPage'
 import DashboardPage from './pages/DashboardPage'
+import InvoiceTestPage from './pages/InvoiceTestPage'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useIsAuthenticated()
@@ -58,6 +59,14 @@ function App() {
         element={
           <ProtectedRoute>
             <DashboardPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/test-invoice"
+        element={
+          <ProtectedRoute>
+            <InvoiceTestPage />
           </ProtectedRoute>
         }
       />

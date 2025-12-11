@@ -5,6 +5,12 @@ import { TrpcService } from './trpc.service'
 import { AuthTrpc } from '../modules/auth/auth.trpc'
 import { UsersTrpc } from '../modules/users/users.trpc'
 import { AiTrpc } from '../modules/ai/ai.trpc'
+import { CatalogTrpc } from '../modules/catalog/catalog.trpc'
+import { ClientsTrpc } from '../modules/clients/clients.trpc'
+import { AnalysesTrpc } from '../modules/analyses/analyses.trpc'
+import { InvoicesTrpc } from '../modules/invoices/invoices.trpc'
+import { InvoiceLinesTrpc } from '../modules/invoice-lines/invoice-lines.trpc'
+import { SummariesTrpc } from '../modules/summaries/summaries.trpc'
 import { createContext } from './trpc.context'
 
 @Injectable()
@@ -16,12 +22,24 @@ export class TrpcRouter implements OnApplicationBootstrap {
     @Inject(AuthTrpc) private readonly authTrpc: AuthTrpc,
     @Inject(UsersTrpc) private readonly usersTrpc: UsersTrpc,
     @Inject(AiTrpc) private readonly aiTrpc: AiTrpc,
+    @Inject(CatalogTrpc) private readonly catalogTrpc: CatalogTrpc,
+    @Inject(ClientsTrpc) private readonly clientsTrpc: ClientsTrpc,
+    @Inject(AnalysesTrpc) private readonly analysesTrpc: AnalysesTrpc,
+    @Inject(InvoicesTrpc) private readonly invoicesTrpc: InvoicesTrpc,
+    @Inject(InvoiceLinesTrpc) private readonly invoiceLinesTrpc: InvoiceLinesTrpc,
+    @Inject(SummariesTrpc) private readonly summariesTrpc: SummariesTrpc,
   ) {
     // Assemble modular routers
     this.appRouter = this.trpc.router({
       auth: this.authTrpc.router,
       users: this.usersTrpc.router,
       ai: this.aiTrpc.router,
+      catalog: this.catalogTrpc.router,
+      clients: this.clientsTrpc.router,
+      analyses: this.analysesTrpc.router,
+      invoices: this.invoicesTrpc.router,
+      invoiceLines: this.invoiceLinesTrpc.router,
+      summaries: this.summariesTrpc.router,
     })
   }
 

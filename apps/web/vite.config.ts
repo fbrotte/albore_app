@@ -15,10 +15,12 @@ export default defineConfig({
       '/api': {
         target: 'http://localhost:3000',
         changeOrigin: true,
+        timeout: 120000, // 2 minutes for long operations
       },
       '/trpc': {
         target: 'http://localhost:3000',
         changeOrigin: true,
+        timeout: 120000, // 2 minutes for long operations like invoice extraction
       },
     },
   },
