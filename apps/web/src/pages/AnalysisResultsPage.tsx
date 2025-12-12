@@ -30,6 +30,383 @@ import { trpc } from '@/lib/trpc'
 
 type TabType = 'lines' | 'summaries'
 
+// Type for invoice line
+interface InvoiceLine {
+  id: string
+  matchStatus: string
+  description: string
+  totalHt: unknown
+  quantity?: number | null
+  unitPrice?: unknown
+  invoice?: { invoiceNumber?: string | null } | null
+  matchedService?: {
+    name: string
+    category?: { name: string } | null
+  } | null
+  matchCandidates?: Array<{ serviceId: string; serviceName: string; score: number }> | null
+  matchConfidence?: number | null
+}
+
+interface ServiceOption {
+  id: string
+  name: string
+  category?: { name: string } | null
+}
+
+// Component for lines with suggested candidates
+function LineWithCandidates({
+  line,
+  assigningLine,
+  setAssigningLine,
+  serviceSearch,
+  setServiceSearch,
+  filteredServices,
+  handleAssignService,
+  handleIgnoreLine,
+  setMatchMutation,
+  ignoreMutation,
+  getMatchStatusBadge,
+}: {
+  line: InvoiceLine
+  assigningLine: string | null
+  setAssigningLine: (id: string | null) => void
+  serviceSearch: string
+  setServiceSearch: (s: string) => void
+  filteredServices: ServiceOption[]
+  handleAssignService: (lineId: string, serviceId: string) => void
+  handleIgnoreLine: (lineId: string) => void
+  setMatchMutation: { isPending: boolean }
+  ignoreMutation: { isPending: boolean }
+  getMatchStatusBadge: (status: string) => React.ReactNode
+}) {
+  const candidates = line.matchCandidates ?? []
+
+  return (
+    <div className="transition-smooth rounded-lg border border-warning/30 bg-warning/5 p-4">
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0 flex-1">
+          <div className="mb-1 flex items-center gap-2">
+            {getMatchStatusBadge(line.matchStatus)}
+            <span className="text-xs text-muted-foreground">
+              {line.invoice?.invoiceNumber ?? 'Facture'}
+            </span>
+          </div>
+          <p className="mb-2 text-sm font-medium" title={line.description}>
+            {line.description}
+          </p>
+
+          {/* Suggested candidates */}
+          {assigningLine !== line.id && (
+            <div className="space-y-1.5">
+              <p className="text-xs font-medium text-muted-foreground">Suggestions :</p>
+              <div className="flex flex-wrap gap-2">
+                {candidates.map((candidate) => (
+                  <button
+                    key={candidate.serviceId}
+                    onClick={() => handleAssignService(line.id, candidate.serviceId)}
+                    disabled={setMatchMutation.isPending}
+                    className="transition-smooth inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/5 px-3 py-1 text-xs hover:border-primary hover:bg-primary/10"
+                  >
+                    <span className="font-medium">{candidate.serviceName}</span>
+                    <span className="rounded bg-primary/20 px-1.5 py-0.5 text-[10px] font-semibold text-primary">
+                      {Math.round(candidate.score * 100)}%
+                    </span>
+                  </button>
+                ))}
+                <button
+                  onClick={() => setAssigningLine(line.id)}
+                  className="transition-smooth inline-flex items-center gap-1 rounded-full border border-muted px-3 py-1 text-xs text-muted-foreground hover:border-foreground hover:text-foreground"
+                >
+                  <Search className="h-3 w-3" />
+                  Autre...
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+        <div className="shrink-0 text-right">
+          <p className="font-semibold">{Number(line.totalHt).toLocaleString('fr-FR')} €</p>
+          {line.quantity !== null &&
+            line.quantity !== undefined &&
+            Number(line.quantity) > 1 &&
+            line.unitPrice !== null &&
+            line.unitPrice !== undefined && (
+              <p className="text-xs text-muted-foreground">
+                {Number(line.quantity)} x {Number(line.unitPrice).toLocaleString('fr-FR')} €
+              </p>
+            )}
+        </div>
+      </div>
+
+      {/* Manual search dropdown */}
+      {assigningLine === line.id && (
+        <div className="mt-3 rounded-lg bg-muted p-3">
+          <div className="relative mb-2">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Rechercher un service..."
+              value={serviceSearch}
+              onChange={(e) => setServiceSearch(e.target.value)}
+              className="pl-9"
+              autoFocus
+            />
+          </div>
+          <div className="max-h-48 space-y-1 overflow-y-auto">
+            {filteredServices.length === 0 ? (
+              <p className="py-2 text-center text-sm text-muted-foreground">Aucun service trouve</p>
+            ) : (
+              filteredServices.map((service) => (
+                <button
+                  key={service.id}
+                  onClick={() => handleAssignService(line.id, service.id)}
+                  className="transition-smooth w-full rounded p-2 text-left text-sm hover:bg-primary/10"
+                  disabled={setMatchMutation.isPending}
+                >
+                  <span className="font-medium">{service.name}</span>
+                  {service.category && (
+                    <span className="ml-2 text-muted-foreground">{service.category.name}</span>
+                  )}
+                </button>
+              ))
+            )}
+          </div>
+          <div className="mt-2 flex justify-end">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setAssigningLine(null)
+                setServiceSearch('')
+              }}
+            >
+              Annuler
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Actions */}
+      {assigningLine !== line.id && (
+        <div className="mt-3 flex items-center justify-end gap-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => handleIgnoreLine(line.id)}
+            disabled={ignoreMutation.isPending}
+          >
+            <X className="mr-1 h-3 w-3" />
+            Ignorer
+          </Button>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// Component for standard line card (matched, ignored, no candidates)
+function LineCard({
+  line,
+  assigningLine,
+  setAssigningLine,
+  serviceSearch,
+  setServiceSearch,
+  filteredServices,
+  handleAssignService,
+  handleIgnoreLine,
+  handleConfirmMatch,
+  handleResetMatch,
+  setMatchMutation,
+  ignoreMutation,
+  confirmMatchMutation,
+  resetMatchMutation,
+  getMatchStatusBadge,
+}: {
+  line: InvoiceLine
+  assigningLine: string | null
+  setAssigningLine: (id: string | null) => void
+  serviceSearch: string
+  setServiceSearch: (s: string) => void
+  filteredServices: ServiceOption[]
+  handleAssignService: (lineId: string, serviceId: string) => void
+  handleIgnoreLine: (lineId: string) => void
+  handleConfirmMatch: (lineId: string) => void
+  handleResetMatch: (lineId: string) => void
+  setMatchMutation: { isPending: boolean }
+  ignoreMutation: { isPending: boolean }
+  confirmMatchMutation: { isPending: boolean }
+  resetMatchMutation: { isPending: boolean }
+  getMatchStatusBadge: (status: string) => React.ReactNode
+}) {
+  return (
+    <div
+      className={`transition-smooth rounded-lg border p-4 ${
+        line.matchStatus === 'PENDING'
+          ? 'border-destructive/30 bg-destructive/5'
+          : line.matchStatus === 'IGNORED'
+            ? 'border-muted bg-muted/30 opacity-60'
+            : 'border-muted hover:border-primary/30'
+      }`}
+    >
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0 flex-1">
+          <div className="mb-1 flex items-center gap-2">
+            {getMatchStatusBadge(line.matchStatus)}
+            <span className="text-xs text-muted-foreground">
+              {line.invoice?.invoiceNumber ?? 'Facture'}
+            </span>
+            {line.matchConfidence && (
+              <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">
+                {Math.round(line.matchConfidence * 100)}%
+              </span>
+            )}
+          </div>
+          <p className="mb-1 truncate text-sm font-medium" title={line.description}>
+            {line.description}
+          </p>
+          {line.matchedService && (
+            <p className="flex items-center text-xs text-primary">
+              <Link2 className="mr-1 h-3 w-3" />
+              {line.matchedService.name}
+              {line.matchedService.category && (
+                <span className="ml-1 text-muted-foreground">
+                  ({line.matchedService.category.name})
+                </span>
+              )}
+            </p>
+          )}
+        </div>
+        <div className="shrink-0 text-right">
+          <p className="font-semibold">{Number(line.totalHt).toLocaleString('fr-FR')} €</p>
+          {line.quantity !== null &&
+            line.quantity !== undefined &&
+            Number(line.quantity) > 1 &&
+            line.unitPrice !== null &&
+            line.unitPrice !== undefined && (
+              <p className="text-xs text-muted-foreground">
+                {Number(line.quantity)} x {Number(line.unitPrice).toLocaleString('fr-FR')} €
+              </p>
+            )}
+        </div>
+      </div>
+
+      {/* Assignment dropdown */}
+      {assigningLine === line.id && (
+        <div className="mt-3 rounded-lg bg-muted p-3">
+          <div className="relative mb-2">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Rechercher un service..."
+              value={serviceSearch}
+              onChange={(e) => setServiceSearch(e.target.value)}
+              className="pl-9"
+              autoFocus
+            />
+          </div>
+          <div className="max-h-48 space-y-1 overflow-y-auto">
+            {filteredServices.length === 0 ? (
+              <p className="py-2 text-center text-sm text-muted-foreground">Aucun service trouve</p>
+            ) : (
+              filteredServices.map((service) => (
+                <button
+                  key={service.id}
+                  onClick={() => handleAssignService(line.id, service.id)}
+                  className="transition-smooth w-full rounded p-2 text-left text-sm hover:bg-primary/10"
+                  disabled={setMatchMutation.isPending}
+                >
+                  <span className="font-medium">{service.name}</span>
+                  {service.category && (
+                    <span className="ml-2 text-muted-foreground">{service.category.name}</span>
+                  )}
+                </button>
+              ))
+            )}
+          </div>
+          <div className="mt-2 flex justify-end">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setAssigningLine(null)
+                setServiceSearch('')
+              }}
+            >
+              Annuler
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Actions */}
+      {assigningLine !== line.id && (
+        <div className="mt-3 flex items-center justify-end gap-2">
+          {line.matchStatus === 'PENDING' && (
+            <>
+              <Button variant="default" size="sm" onClick={() => setAssigningLine(line.id)}>
+                <Link2 className="mr-1 h-3 w-3" />
+                Assigner
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => handleIgnoreLine(line.id)}
+                disabled={ignoreMutation.isPending}
+              >
+                <X className="mr-1 h-3 w-3" />
+                Ignorer
+              </Button>
+            </>
+          )}
+          {line.matchStatus === 'AUTO' && (
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleConfirmMatch(line.id)}
+                disabled={confirmMatchMutation.isPending}
+              >
+                <Check className="mr-1 h-3 w-3" />
+                Confirmer
+              </Button>
+              <Button variant="ghost" size="sm" onClick={() => setAssigningLine(line.id)}>
+                <Edit2 className="mr-1 h-3 w-3" />
+                Modifier
+              </Button>
+            </>
+          )}
+          {(line.matchStatus === 'CONFIRMED' || line.matchStatus === 'MANUAL') && (
+            <>
+              <Button variant="ghost" size="sm" onClick={() => setAssigningLine(line.id)}>
+                <Edit2 className="mr-1 h-3 w-3" />
+                Modifier
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => handleResetMatch(line.id)}
+                disabled={resetMatchMutation.isPending}
+              >
+                <Unlink className="mr-1 h-3 w-3" />
+                Retirer
+              </Button>
+            </>
+          )}
+          {line.matchStatus === 'IGNORED' && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => handleResetMatch(line.id)}
+              disabled={resetMatchMutation.isPending}
+            >
+              <RefreshCw className="mr-1 h-3 w-3" />
+              Reactiver
+            </Button>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function AnalysisResultsPage() {
   const { id: analysisId } = useParams<{ id: string }>()
   const navigate = useNavigate()
@@ -150,15 +527,14 @@ export default function AnalysisResultsPage() {
   }
 
   // Filter services based on search
-  const filteredServices = useMemo(() => {
+  const filteredServices = useMemo((): ServiceOption[] => {
     if (!services) return []
-    if (!serviceSearch.trim()) return services
+    const svcList = services as ServiceOption[]
+    if (!serviceSearch.trim()) return svcList
     const search = serviceSearch.toLowerCase()
-    return services.filter(
-      (s: { name: string; description?: string | null; category?: { name: string } | null }) =>
-        s.name.toLowerCase().includes(search) ||
-        s.description?.toLowerCase().includes(search) ||
-        s.category?.name.toLowerCase().includes(search),
+    return svcList.filter(
+      (s) =>
+        s.name.toLowerCase().includes(search) || s.category?.name.toLowerCase().includes(search),
     )
   }, [services, serviceSearch])
 
@@ -179,11 +555,35 @@ export default function AnalysisResultsPage() {
       (sum: number, s: { avgMonthly: unknown }) => sum + Number(s.avgMonthly),
       0,
     )
+
+    // Calculate Albore total: ourPrice * avgQuantity for each summary
+    // If no quantity info, fall back to avgMonthly - savingAmount
     const alboreTotal = summaries.reduce(
-      (sum: number, s: { ourPrice?: unknown; avgMonthly: unknown }) =>
-        sum + (s.ourPrice ? Number(s.ourPrice) : Number(s.avgMonthly)),
+      (
+        sum: number,
+        s: {
+          ourPrice?: unknown
+          avgQuantity?: unknown
+          avgMonthly: unknown
+          savingAmount?: unknown
+        },
+      ) => {
+        const ourPrice = s.ourPrice ? Number(s.ourPrice) : null
+        const avgQuantity = s.avgQuantity ? Number(s.avgQuantity) : null
+        const avgMonthly = Number(s.avgMonthly)
+        const savingAmount = s.savingAmount ? Number(s.savingAmount) : 0
+
+        if (ourPrice !== null && avgQuantity !== null) {
+          // Calculate monthly total from unit price * quantity
+          return sum + ourPrice * avgQuantity
+        } else {
+          // Fallback: current total - savings
+          return sum + (avgMonthly - savingAmount)
+        }
+      },
       0,
     )
+
     const savingsTotal = summaries.reduce(
       (sum: number, s: { savingAmount?: unknown }) => sum + Number(s.savingAmount ?? 0),
       0,
@@ -216,6 +616,33 @@ export default function AnalysisResultsPage() {
       unmatched: invoiceLines.length - matched - ignored,
       ignored,
     }
+  }, [invoiceLines])
+
+  // Separate lines by status: matched, pending with candidates, pending without candidates, ignored
+  const groupedLines = useMemo((): {
+    matched: InvoiceLine[]
+    withCandidates: InvoiceLine[]
+    withoutCandidates: InvoiceLine[]
+    ignored: InvoiceLine[]
+  } => {
+    if (!invoiceLines)
+      return { matched: [], withCandidates: [], withoutCandidates: [], ignored: [] }
+
+    const lines = invoiceLines as InvoiceLine[]
+
+    const matched = lines.filter(
+      (l) =>
+        l.matchStatus === 'AUTO' || l.matchStatus === 'CONFIRMED' || l.matchStatus === 'MANUAL',
+    )
+    const ignored = lines.filter((l) => l.matchStatus === 'IGNORED')
+    const pending = lines.filter((l) => l.matchStatus === 'PENDING')
+
+    const withCandidates = pending.filter((l) => l.matchCandidates && l.matchCandidates.length > 0)
+    const withoutCandidates = pending.filter(
+      (l) => !l.matchCandidates || l.matchCandidates.length === 0,
+    )
+
+    return { matched, withCandidates, withoutCandidates, ignored }
   }, [invoiceLines])
 
   const getMatchStatusBadge = (status: string) => {
@@ -431,213 +858,129 @@ export default function AnalysisResultsPage() {
                       </Button>
                     </div>
                   ) : (
-                    <div className="space-y-3">
-                      {invoiceLines.map(
-                        (line: {
-                          id: string
-                          matchStatus: string
-                          description: string
-                          totalHt: unknown
-                          quantity?: number | null
-                          unitPrice?: unknown
-                          invoice?: { invoiceNumber?: string | null } | null
-                          matchedService?: {
-                            name: string
-                            category?: { name: string } | null
-                          } | null
-                        }) => (
-                          <div
-                            key={line.id}
-                            className={`transition-smooth rounded-lg border p-4 ${
-                              line.matchStatus === 'PENDING'
-                                ? 'border-destructive/30 bg-destructive/5'
-                                : line.matchStatus === 'IGNORED'
-                                  ? 'border-muted bg-muted/30 opacity-60'
-                                  : 'border-muted hover:border-primary/30'
-                            }`}
-                          >
-                            <div className="flex items-start justify-between gap-4">
-                              <div className="min-w-0 flex-1">
-                                <div className="mb-1 flex items-center gap-2">
-                                  {getMatchStatusBadge(line.matchStatus)}
-                                  <span className="text-xs text-muted-foreground">
-                                    {line.invoice?.invoiceNumber ?? 'Facture'}
-                                  </span>
-                                </div>
-                                <p
-                                  className="mb-1 truncate text-sm font-medium"
-                                  title={line.description}
-                                >
-                                  {line.description}
-                                </p>
-                                {line.matchedService && (
-                                  <p className="flex items-center text-xs text-primary">
-                                    <Link2 className="mr-1 h-3 w-3" />
-                                    {line.matchedService.name}
-                                    {line.matchedService.category && (
-                                      <span className="ml-1 text-muted-foreground">
-                                        ({line.matchedService.category.name})
-                                      </span>
-                                    )}
-                                  </p>
-                                )}
-                              </div>
-                              <div className="shrink-0 text-right">
-                                <p className="font-semibold">
-                                  {Number(line.totalHt).toLocaleString('fr-FR')} €
-                                </p>
-                                {line.quantity !== null &&
-                                  line.quantity !== undefined &&
-                                  Number(line.quantity) > 1 &&
-                                  line.unitPrice !== null &&
-                                  line.unitPrice !== undefined && (
-                                    <p className="text-xs text-muted-foreground">
-                                      {Number(line.quantity)} x{' '}
-                                      {Number(line.unitPrice).toLocaleString('fr-FR')} €
-                                    </p>
-                                  )}
-                              </div>
-                            </div>
-
-                            {/* Assignment dropdown */}
-                            {assigningLine === line.id && (
-                              <div className="mt-3 rounded-lg bg-muted p-3">
-                                <div className="relative mb-2">
-                                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                                  <Input
-                                    placeholder="Rechercher un service..."
-                                    value={serviceSearch}
-                                    onChange={(e) => setServiceSearch(e.target.value)}
-                                    className="pl-9"
-                                    autoFocus
-                                  />
-                                </div>
-                                <div className="max-h-48 space-y-1 overflow-y-auto">
-                                  {filteredServices.length === 0 ? (
-                                    <p className="py-2 text-center text-sm text-muted-foreground">
-                                      Aucun service trouve
-                                    </p>
-                                  ) : (
-                                    filteredServices.map(
-                                      (service: {
-                                        id: string
-                                        name: string
-                                        category?: { name: string } | null
-                                      }) => (
-                                        <button
-                                          key={service.id}
-                                          onClick={() => handleAssignService(line.id, service.id)}
-                                          className="transition-smooth w-full rounded p-2 text-left text-sm hover:bg-primary/10"
-                                          disabled={setMatchMutation.isPending}
-                                        >
-                                          <span className="font-medium">{service.name}</span>
-                                          {service.category && (
-                                            <span className="ml-2 text-muted-foreground">
-                                              {service.category.name}
-                                            </span>
-                                          )}
-                                        </button>
-                                      ),
-                                    )
-                                  )}
-                                </div>
-                                <div className="mt-2 flex justify-end">
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => {
-                                      setAssigningLine(null)
-                                      setServiceSearch('')
-                                    }}
-                                  >
-                                    Annuler
-                                  </Button>
-                                </div>
-                              </div>
-                            )}
-
-                            {/* Actions */}
-                            {assigningLine !== line.id && (
-                              <div className="mt-3 flex items-center justify-end gap-2">
-                                {line.matchStatus === 'PENDING' && (
-                                  <>
-                                    <Button
-                                      variant="default"
-                                      size="sm"
-                                      onClick={() => setAssigningLine(line.id)}
-                                    >
-                                      <Link2 className="mr-1 h-3 w-3" />
-                                      Assigner
-                                    </Button>
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      onClick={() => handleIgnoreLine(line.id)}
-                                      disabled={ignoreMutation.isPending}
-                                    >
-                                      <X className="mr-1 h-3 w-3" />
-                                      Ignorer
-                                    </Button>
-                                  </>
-                                )}
-                                {line.matchStatus === 'AUTO' && (
-                                  <>
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      onClick={() => handleConfirmMatch(line.id)}
-                                      disabled={confirmMatchMutation.isPending}
-                                    >
-                                      <Check className="mr-1 h-3 w-3" />
-                                      Confirmer
-                                    </Button>
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      onClick={() => setAssigningLine(line.id)}
-                                    >
-                                      <Edit2 className="mr-1 h-3 w-3" />
-                                      Modifier
-                                    </Button>
-                                  </>
-                                )}
-                                {(line.matchStatus === 'CONFIRMED' ||
-                                  line.matchStatus === 'MANUAL') && (
-                                  <>
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      onClick={() => setAssigningLine(line.id)}
-                                    >
-                                      <Edit2 className="mr-1 h-3 w-3" />
-                                      Modifier
-                                    </Button>
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      onClick={() => handleResetMatch(line.id)}
-                                      disabled={resetMatchMutation.isPending}
-                                    >
-                                      <Unlink className="mr-1 h-3 w-3" />
-                                      Retirer
-                                    </Button>
-                                  </>
-                                )}
-                                {line.matchStatus === 'IGNORED' && (
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => handleResetMatch(line.id)}
-                                    disabled={resetMatchMutation.isPending}
-                                  >
-                                    <RefreshCw className="mr-1 h-3 w-3" />
-                                    Reactiver
-                                  </Button>
-                                )}
-                              </div>
-                            )}
+                    <div className="space-y-6">
+                      {/* Lines with candidates - need review */}
+                      {groupedLines.withCandidates.length > 0 && (
+                        <div>
+                          <h4 className="mb-3 flex items-center text-sm font-medium text-warning">
+                            <Sparkles className="mr-2 h-4 w-4" />
+                            Suggestions disponibles ({groupedLines.withCandidates.length})
+                          </h4>
+                          <div className="space-y-3">
+                            {groupedLines.withCandidates.map((line) => (
+                              <LineWithCandidates
+                                key={line.id}
+                                line={line}
+                                assigningLine={assigningLine}
+                                setAssigningLine={setAssigningLine}
+                                serviceSearch={serviceSearch}
+                                setServiceSearch={setServiceSearch}
+                                filteredServices={filteredServices}
+                                handleAssignService={handleAssignService}
+                                handleIgnoreLine={handleIgnoreLine}
+                                setMatchMutation={setMatchMutation}
+                                ignoreMutation={ignoreMutation}
+                                getMatchStatusBadge={getMatchStatusBadge}
+                              />
+                            ))}
                           </div>
-                        ),
+                        </div>
+                      )}
+
+                      {/* Lines without candidates - manual assignment needed */}
+                      {groupedLines.withoutCandidates.length > 0 && (
+                        <div>
+                          <h4 className="mb-3 flex items-center text-sm font-medium text-destructive">
+                            <AlertCircle className="mr-2 h-4 w-4" />
+                            Assignation manuelle requise ({groupedLines.withoutCandidates.length})
+                          </h4>
+                          <div className="space-y-3">
+                            {groupedLines.withoutCandidates.map((line) => (
+                              <LineCard
+                                key={line.id}
+                                line={line}
+                                assigningLine={assigningLine}
+                                setAssigningLine={setAssigningLine}
+                                serviceSearch={serviceSearch}
+                                setServiceSearch={setServiceSearch}
+                                filteredServices={filteredServices}
+                                handleAssignService={handleAssignService}
+                                handleIgnoreLine={handleIgnoreLine}
+                                handleConfirmMatch={handleConfirmMatch}
+                                handleResetMatch={handleResetMatch}
+                                setMatchMutation={setMatchMutation}
+                                ignoreMutation={ignoreMutation}
+                                confirmMatchMutation={confirmMatchMutation}
+                                resetMatchMutation={resetMatchMutation}
+                                getMatchStatusBadge={getMatchStatusBadge}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Matched lines */}
+                      {groupedLines.matched.length > 0 && (
+                        <div>
+                          <h4 className="mb-3 flex items-center text-sm font-medium text-success">
+                            <CheckCircle className="mr-2 h-4 w-4" />
+                            Lignes assignees ({groupedLines.matched.length})
+                          </h4>
+                          <div className="space-y-3">
+                            {groupedLines.matched.map((line) => (
+                              <LineCard
+                                key={line.id}
+                                line={line}
+                                assigningLine={assigningLine}
+                                setAssigningLine={setAssigningLine}
+                                serviceSearch={serviceSearch}
+                                setServiceSearch={setServiceSearch}
+                                filteredServices={filteredServices}
+                                handleAssignService={handleAssignService}
+                                handleIgnoreLine={handleIgnoreLine}
+                                handleConfirmMatch={handleConfirmMatch}
+                                handleResetMatch={handleResetMatch}
+                                setMatchMutation={setMatchMutation}
+                                ignoreMutation={ignoreMutation}
+                                confirmMatchMutation={confirmMatchMutation}
+                                resetMatchMutation={resetMatchMutation}
+                                getMatchStatusBadge={getMatchStatusBadge}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Ignored lines */}
+                      {groupedLines.ignored.length > 0 && (
+                        <div>
+                          <h4 className="mb-3 flex items-center text-sm font-medium text-muted-foreground">
+                            <X className="mr-2 h-4 w-4" />
+                            Lignes ignorees ({groupedLines.ignored.length})
+                          </h4>
+                          <div className="space-y-3">
+                            {groupedLines.ignored.map((line) => (
+                              <LineCard
+                                key={line.id}
+                                line={line}
+                                assigningLine={assigningLine}
+                                setAssigningLine={setAssigningLine}
+                                serviceSearch={serviceSearch}
+                                setServiceSearch={setServiceSearch}
+                                filteredServices={filteredServices}
+                                handleAssignService={handleAssignService}
+                                handleIgnoreLine={handleIgnoreLine}
+                                handleConfirmMatch={handleConfirmMatch}
+                                handleResetMatch={handleResetMatch}
+                                setMatchMutation={setMatchMutation}
+                                ignoreMutation={ignoreMutation}
+                                confirmMatchMutation={confirmMatchMutation}
+                                resetMatchMutation={resetMatchMutation}
+                                getMatchStatusBadge={getMatchStatusBadge}
+                              />
+                            ))}
+                          </div>
+                        </div>
                       )}
                     </div>
                   )}
@@ -702,12 +1045,17 @@ export default function AnalysisResultsPage() {
                               <th className="px-2 py-3 text-left text-sm font-semibold">
                                 Poste de depense
                               </th>
-                              <th className="px-2 py-3 text-right text-sm font-semibold">Actuel</th>
-                              <th className="px-2 py-3 text-right text-sm font-semibold">
-                                Offre Albore
+                              <th className="px-2 py-3 text-center text-sm font-semibold">
+                                Qte moy.
                               </th>
                               <th className="px-2 py-3 text-right text-sm font-semibold">
-                                Economie
+                                Prix unit. actuel
+                              </th>
+                              <th className="px-2 py-3 text-right text-sm font-semibold">
+                                Prix unit. Albore
+                              </th>
+                              <th className="px-2 py-3 text-right text-sm font-semibold">
+                                Economie/mois
                               </th>
                               <th className="px-2 py-3 text-center text-sm font-semibold">
                                 Action
@@ -719,32 +1067,82 @@ export default function AnalysisResultsPage() {
                               (summary: {
                                 id: string
                                 avgMonthly: unknown
+                                avgQuantity?: unknown
+                                minQuantity?: unknown
+                                maxQuantity?: unknown
+                                avgUnitPrice?: unknown
                                 ourPrice?: unknown
+                                savingAmount?: unknown
                                 customLabel?: string | null
-                                matchedService?: { name: string } | null
+                                matchedService?: { name: string; unitLabel?: string } | null
                               }) => {
-                                const current = Number(summary.avgMonthly)
-                                const albore = summary.ourPrice ? Number(summary.ourPrice) : current
-                                const savings = current - albore
+                                const avgQuantity = summary.avgQuantity
+                                  ? Number(summary.avgQuantity)
+                                  : null
+                                const minQty = summary.minQuantity
+                                  ? Number(summary.minQuantity)
+                                  : null
+                                const maxQty = summary.maxQuantity
+                                  ? Number(summary.maxQuantity)
+                                  : null
+                                const avgUnitPrice = summary.avgUnitPrice
+                                  ? Number(summary.avgUnitPrice)
+                                  : null
+                                const ourUnitPrice = summary.ourPrice
+                                  ? Number(summary.ourPrice)
+                                  : null
+                                const savingAmount = summary.savingAmount
+                                  ? Number(summary.savingAmount)
+                                  : null
+                                const unitLabel = summary.matchedService?.unitLabel ?? 'unite'
+
+                                // Show quantity range if different
+                                const qtyDisplay =
+                                  avgQuantity !== null
+                                    ? minQty !== null &&
+                                      maxQty !== null &&
+                                      Math.abs(minQty - maxQty) > 0.1
+                                      ? `${avgQuantity.toFixed(1)} (${minQty}-${maxQty})`
+                                      : avgQuantity.toFixed(1)
+                                    : '-'
 
                                 return (
                                   <tr
                                     key={summary.id}
                                     className="transition-smooth border-b border-muted hover:bg-muted/50"
                                   >
-                                    <td className="px-2 py-4 text-sm">
-                                      {summary.matchedService?.name ??
-                                        summary.customLabel ??
-                                        'Service'}
+                                    <td className="px-2 py-4">
+                                      <div className="text-sm font-medium">
+                                        {summary.matchedService?.name ??
+                                          summary.customLabel ??
+                                          'Service'}
+                                      </div>
+                                      <div className="text-xs text-muted-foreground">
+                                        {unitLabel}
+                                      </div>
                                     </td>
-                                    <td className="px-2 py-4 text-right text-sm font-medium">
-                                      {current.toLocaleString('fr-FR')} €
+                                    <td className="px-2 py-4 text-center text-sm">
+                                      <span className="font-medium">{qtyDisplay}</span>
+                                    </td>
+                                    <td className="px-2 py-4 text-right text-sm">
+                                      {avgUnitPrice !== null ? (
+                                        <span className="font-medium">
+                                          {avgUnitPrice.toLocaleString('fr-FR', {
+                                            minimumFractionDigits: 2,
+                                            maximumFractionDigits: 2,
+                                          })}{' '}
+                                          €
+                                        </span>
+                                      ) : (
+                                        <span className="text-muted-foreground">-</span>
+                                      )}
                                     </td>
                                     <td className="px-2 py-4 text-right text-sm">
                                       {editingItem === summary.id ? (
                                         <div className="flex items-center justify-end space-x-2">
                                           <Input
                                             type="number"
+                                            step="0.01"
                                             value={editValue}
                                             onChange={(e) => setEditValue(e.target.value)}
                                             className="w-24 text-right"
@@ -767,15 +1165,33 @@ export default function AnalysisResultsPage() {
                                         </div>
                                       ) : (
                                         <span className="font-medium text-primary">
-                                          {albore.toLocaleString('fr-FR')} €
+                                          {ourUnitPrice !== null
+                                            ? `${ourUnitPrice.toLocaleString('fr-FR', {
+                                                minimumFractionDigits: 2,
+                                                maximumFractionDigits: 2,
+                                              })} €`
+                                            : '-'}
                                         </span>
                                       )}
                                     </td>
                                     <td className="px-2 py-4 text-right text-sm">
-                                      {savings > 0 ? (
+                                      {savingAmount !== null && savingAmount > 0 ? (
                                         <span className="inline-flex items-center rounded-full bg-success/10 px-2.5 py-1 text-xs font-medium text-success">
                                           <TrendingDown className="mr-1 h-3 w-3" />-
-                                          {savings.toLocaleString('fr-FR')} €
+                                          {savingAmount.toLocaleString('fr-FR', {
+                                            minimumFractionDigits: 2,
+                                            maximumFractionDigits: 2,
+                                          })}{' '}
+                                          €
+                                        </span>
+                                      ) : savingAmount !== null && savingAmount < 0 ? (
+                                        <span className="inline-flex items-center rounded-full bg-destructive/10 px-2.5 py-1 text-xs font-medium text-destructive">
+                                          +
+                                          {Math.abs(savingAmount).toLocaleString('fr-FR', {
+                                            minimumFractionDigits: 2,
+                                            maximumFractionDigits: 2,
+                                          })}{' '}
+                                          €
                                         </span>
                                       ) : (
                                         <span className="text-muted-foreground">-</span>
@@ -790,7 +1206,7 @@ export default function AnalysisResultsPage() {
                                           )
                                         }
                                         className="transition-smooth rounded-lg p-2 hover:bg-muted"
-                                        title="Editer le prix"
+                                        title="Editer le prix unitaire"
                                       >
                                         <Edit2 className="h-4 w-4 text-muted-foreground" />
                                       </button>
@@ -802,7 +1218,8 @@ export default function AnalysisResultsPage() {
 
                             {/* Total Row */}
                             <tr className="bg-muted font-semibold">
-                              <td className="px-2 py-4 text-sm">Total</td>
+                              <td className="px-2 py-4 text-sm">Total mensuel</td>
+                              <td className="px-2 py-4 text-center text-sm">-</td>
                               <td className="px-2 py-4 text-right text-sm">
                                 {totals.currentTotal.toLocaleString('fr-FR')} €
                               </td>

@@ -7,6 +7,8 @@ import type { Decimal } from '@prisma/client/runtime/library'
 
 interface LineWithPeriod {
   totalHt: Decimal
+  quantity: Decimal | null
+  unitPrice: Decimal | null
   periodStart: Date | null
   periodEnd: Date | null
   invoiceDate: Date | null
@@ -87,6 +89,8 @@ export class SummariesService {
     for (const [serviceId, lines] of groupedByService) {
       const linesWithPeriod: LineWithPeriod[] = lines.map((l) => ({
         totalHt: l.totalHt,
+        quantity: l.quantity,
+        unitPrice: l.unitPrice,
         periodStart: l.periodStart,
         periodEnd: l.periodEnd,
         invoiceDate: l.invoice.invoiceDate,
@@ -102,21 +106,39 @@ export class SummariesService {
 
       const billingPattern = this.detectBillingPattern(monthlyAmounts, monthsCount)
 
+      // Calculate quantities
+      const quantityStats = this.calculateQuantityStats(linesWithPeriod, monthsCount)
+
       // Get service pricing
       const service = lines[0].matchedService!
+
+      // Preserve existing ourPrice if available, otherwise use service basePrice (unit price)
+      const existing = existingByService.get(serviceId)
       let ourPrice: number | null = null
 
-      // Preserve existing ourPrice if available
-      const existing = existingByService.get(serviceId)
       if (existing?.ourPrice) {
+        // Preserve manually set price
         ourPrice = Number(existing.ourPrice)
+      } else if (service.basePrice) {
+        // Default to service catalog unit price
+        ourPrice = Number(service.basePrice)
       }
 
-      // Calculate savings
+      // Calculate savings based on unit prices and quantities
       let savingAmount: number | null = null
       let savingPercent: number | null = null
 
-      if (ourPrice !== null && avgMonthly > 0) {
+      if (ourPrice !== null && quantityStats.avgQuantity && quantityStats.avgUnitPrice) {
+        // Calculate monthly saving: (current unit price - our unit price) * avg quantity
+        const unitPriceDiff = quantityStats.avgUnitPrice - ourPrice
+        savingAmount = unitPriceDiff * quantityStats.avgQuantity
+        // Percent saving on the monthly amount
+        if (avgMonthly > 0) {
+          savingPercent = (savingAmount / avgMonthly) * 100
+        }
+      } else if (ourPrice !== null && avgMonthly > 0) {
+        // Fallback: if no quantity info, compare total amounts (less accurate)
+        // This assumes ourPrice represents a comparable monthly total
         savingAmount = avgMonthly - ourPrice
         savingPercent = (savingAmount / avgMonthly) * 100
       }
@@ -130,6 +152,11 @@ export class SummariesService {
           avgMonthly,
           minMonthly,
           maxMonthly,
+          totalQuantity: quantityStats.totalQuantity,
+          avgQuantity: quantityStats.avgQuantity,
+          minQuantity: quantityStats.minQuantity,
+          maxQuantity: quantityStats.maxQuantity,
+          avgUnitPrice: quantityStats.avgUnitPrice,
           billingPattern,
           ourPrice,
           ourPriceNote: existing?.ourPriceNote,
@@ -163,7 +190,18 @@ export class SummariesService {
 
     if (data.ourPrice !== undefined) {
       const avgMonthly = Number(summary.avgMonthly)
-      if (data.ourPrice !== null && avgMonthly > 0) {
+      const avgQuantity = summary.avgQuantity ? Number(summary.avgQuantity) : null
+      const avgUnitPrice = summary.avgUnitPrice ? Number(summary.avgUnitPrice) : null
+
+      if (data.ourPrice !== null && avgQuantity && avgUnitPrice) {
+        // Calculate saving based on unit price difference
+        const unitPriceDiff = avgUnitPrice - data.ourPrice
+        savingAmount = unitPriceDiff * avgQuantity
+        if (avgMonthly > 0) {
+          savingPercent = (savingAmount / avgMonthly) * 100
+        }
+      } else if (data.ourPrice !== null && avgMonthly > 0) {
+        // Fallback: compare total amounts
         savingAmount = avgMonthly - data.ourPrice
         savingPercent = (savingAmount / avgMonthly) * 100
       } else {
@@ -208,7 +246,7 @@ export class SummariesService {
     return Math.max(1, monthsDiff)
   }
 
-  private calculateMonthlyAmounts(lines: LineWithPeriod[], monthsCount: number): number[] {
+  private calculateMonthlyAmounts(lines: LineWithPeriod[], _monthsCount: number): number[] {
     if (lines.length === 1) {
       return [Number(lines[0].totalHt)]
     }
@@ -239,5 +277,73 @@ export class SummariesService {
     }
 
     return 'VARIABLE'
+  }
+
+  private calculateQuantityStats(
+    lines: LineWithPeriod[],
+    monthsCount: number,
+  ): {
+    totalQuantity: number | null
+    avgQuantity: number | null
+    minQuantity: number | null
+    maxQuantity: number | null
+    avgUnitPrice: number | null
+  } {
+    // Extract quantities from lines that have them
+    const quantities = lines.filter((l) => l.quantity !== null).map((l) => Number(l.quantity))
+
+    if (quantities.length === 0) {
+      // No quantity info available - try to infer from totalHt and unitPrice
+      const linesWithUnitPrice = lines.filter(
+        (l) => l.unitPrice !== null && Number(l.unitPrice) > 0,
+      )
+
+      if (linesWithUnitPrice.length > 0) {
+        // Calculate implied quantities from totalHt / unitPrice
+        const impliedQuantities = linesWithUnitPrice.map((l) => {
+          const total = Number(l.totalHt)
+          const unit = Number(l.unitPrice)
+          return total / unit
+        })
+
+        const totalQuantity = impliedQuantities.reduce((sum, q) => sum + q, 0)
+        const avgQuantity = totalQuantity / monthsCount
+        const totalHt = lines.reduce((sum, l) => sum + Number(l.totalHt), 0)
+        const avgUnitPrice = totalQuantity > 0 ? totalHt / totalQuantity : null
+
+        return {
+          totalQuantity,
+          avgQuantity,
+          minQuantity: Math.min(...impliedQuantities),
+          maxQuantity: Math.max(...impliedQuantities),
+          avgUnitPrice,
+        }
+      }
+
+      return {
+        totalQuantity: null,
+        avgQuantity: null,
+        minQuantity: null,
+        maxQuantity: null,
+        avgUnitPrice: null,
+      }
+    }
+
+    const totalQuantity = quantities.reduce((sum, q) => sum + q, 0)
+    const avgQuantity = totalQuantity / monthsCount
+    const minQuantity = Math.min(...quantities)
+    const maxQuantity = Math.max(...quantities)
+
+    // Calculate average unit price from total amount / total quantity
+    const totalHt = lines.reduce((sum, l) => sum + Number(l.totalHt), 0)
+    const avgUnitPrice = totalQuantity > 0 ? totalHt / totalQuantity : null
+
+    return {
+      totalQuantity,
+      avgQuantity,
+      minQuantity,
+      maxQuantity,
+      avgUnitPrice,
+    }
   }
 }
