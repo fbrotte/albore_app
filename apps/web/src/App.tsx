@@ -10,6 +10,7 @@ import AnalysisPage from './pages/AnalysisPage'
 import UploadInvoicePage from './pages/UploadInvoicePage'
 import AnalysisResultsPage from './pages/AnalysisResultsPage'
 import ProposalPage from './pages/ProposalPage'
+import ServicesPage from './pages/ServicesPage'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useIsAuthenticated()
@@ -128,6 +129,16 @@ function App() {
         element={
           <ProtectedRoute>
             <ProposalPage />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Services / Catalogue */}
+      <Route
+        path="/services"
+        element={
+          <ProtectedRoute>
+            <ServicesPage />
           </ProtectedRoute>
         }
       />

@@ -1,5 +1,5 @@
 import { useNavigate, useLocation } from 'react-router-dom'
-import { BarChart3, Home, FileText, Users, LogOut } from 'lucide-react'
+import { BarChart3, Home, FileText, Users, LogOut, Package } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useAuthStore, useUser } from '@/stores/auth.store'
 import { trpc } from '@/lib/trpc'
@@ -68,6 +68,7 @@ export function AppHeader() {
           <nav className="flex items-center space-x-2">
             <NavButton path="/dashboard" icon={Home} label="Dashboard" />
             <NavButton path="/clients" icon={Users} label="Clients" />
+            <NavButton path="/services" icon={Package} label="Services" />
             <NavButton path="/analyses/new" icon={FileText} label="Nouvelle Analyse" />
           </nav>
 
