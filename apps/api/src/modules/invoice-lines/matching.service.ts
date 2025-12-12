@@ -13,8 +13,8 @@ export interface MatchResult {
 
 @Injectable()
 export class MatchingService {
-  private readonly AUTO_MATCH_THRESHOLD = 0.92
-  private readonly CANDIDATE_THRESHOLD = 0.7
+  private readonly AUTO_MATCH_THRESHOLD = 0.85
+  private readonly CANDIDATE_THRESHOLD = 0.5
   private readonly MAX_CANDIDATES = 4
 
   constructor(

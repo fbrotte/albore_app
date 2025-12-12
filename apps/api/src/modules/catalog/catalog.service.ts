@@ -124,13 +124,14 @@ export class CatalogService {
   }
 
   async createService(data: CreateService) {
-    // Generate embedding for semantic description
+    // Generate embedding for name + semantic description
     let embeddingArray: number[] | null = null
+    const embeddingText = `${data.name}. ${data.semanticDescription}`
 
     try {
       if (this.aiService.isConfigured()) {
         const embeddings = await this.aiService.embedding({
-          input: data.semanticDescription,
+          input: embeddingText,
         })
         embeddingArray = embeddings[0]
         this.logger.log(`Generated embedding for service: ${data.name}`)
@@ -203,23 +204,41 @@ export class CatalogService {
       throw new NotFoundException(`Service ${id} not found`)
     }
 
-    // If semantic description changed, regenerate embedding
-    if (data.semanticDescription && data.semanticDescription !== service.semanticDescription) {
+    // If name or semantic description changed, regenerate embedding
+    const nameChanged = data.name && data.name !== service.name
+    const descChanged =
+      data.semanticDescription && data.semanticDescription !== service.semanticDescription
+
+    if (nameChanged || descChanged) {
       try {
         if (this.aiService.isConfigured()) {
+          const newName = data.name ?? service.name
+          const newDesc = data.semanticDescription ?? service.semanticDescription
+          const embeddingText = `${newName}. ${newDesc}`
+
           const embeddings = await this.aiService.embedding({
-            input: data.semanticDescription,
+            input: embeddingText,
           })
           const embeddingStr = `[${embeddings[0].join(',')}]`
 
-          await this.prisma.$executeRaw`
-            UPDATE services
-            SET
-              description_embedding = ${embeddingStr}::vector,
-              semantic_description = ${data.semanticDescription},
-              updated_at = NOW()
-            WHERE id = ${id}
-          `
+          if (data.semanticDescription) {
+            await this.prisma.$executeRaw`
+              UPDATE services
+              SET
+                description_embedding = ${embeddingStr}::vector,
+                semantic_description = ${data.semanticDescription},
+                updated_at = NOW()
+              WHERE id = ${id}
+            `
+          } else {
+            await this.prisma.$executeRaw`
+              UPDATE services
+              SET
+                description_embedding = ${embeddingStr}::vector,
+                updated_at = NOW()
+              WHERE id = ${id}
+            `
+          }
 
           this.logger.log(`Updated embedding for service: ${id}`)
         }

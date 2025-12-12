@@ -49,8 +49,9 @@ async function regenerateEmbeddings() {
 
   for (const service of services) {
     try {
-      // Generate embedding from semantic description
-      const embedding = await generateEmbedding(service.semanticDescription)
+      // Generate embedding from name + semantic description for better matching
+      const embeddingText = `${service.name}. ${service.semanticDescription}`
+      const embedding = await generateEmbedding(embeddingText)
       const embeddingStr = `[${embedding.join(',')}]`
 
       // Update service with real embedding
