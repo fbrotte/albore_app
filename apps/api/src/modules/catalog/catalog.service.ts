@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, Inject } from '@nestjs/common'
 import { PrismaService } from '../prisma/prisma.service'
-import { AiService } from '../ai/ai.service'
+import { EmbeddingService } from './embedding.service'
 import { LoggerService } from '../logger/logger.service'
 import type {
   CreateCategory,
@@ -15,7 +15,7 @@ import type {
 export class CatalogService {
   constructor(
     @Inject(PrismaService) private prisma: PrismaService,
-    @Inject(AiService) private aiService: AiService,
+    @Inject(EmbeddingService) private embeddingService: EmbeddingService,
     @Inject(LoggerService) private logger: LoggerService,
   ) {}
 
@@ -125,22 +125,11 @@ export class CatalogService {
 
   async createService(data: CreateService) {
     // Generate embedding for name + semantic description
-    let embeddingArray: number[] | null = null
-    const embeddingText = `${data.name}. ${data.semanticDescription}`
-
-    try {
-      if (this.aiService.isConfigured()) {
-        const embeddings = await this.aiService.embedding({
-          input: embeddingText,
-        })
-        embeddingArray = embeddings[0]
-        this.logger.log(`Generated embedding for service: ${data.name}`)
-      } else {
-        this.logger.warn('AI not configured, skipping embedding generation')
-      }
-    } catch (error) {
-      this.logger.error('Failed to generate embedding:', error)
-    }
+    const embeddingText = this.embeddingService.buildEmbeddingText(
+      data.name,
+      data.semanticDescription,
+    )
+    const embeddingArray = await this.embeddingService.generateEmbedding(embeddingText)
 
     // Create service with raw SQL for vector field
     if (embeddingArray) {
@@ -170,6 +159,7 @@ export class CatalogService {
         RETURNING id
       `
 
+      this.logger.log(`Created service with embedding: ${data.name}`)
       return this.findServiceById(result[0].id)
     }
 
@@ -204,58 +194,25 @@ export class CatalogService {
       throw new NotFoundException(`Service ${id} not found`)
     }
 
-    // If name or semantic description changed, regenerate embedding
-    const nameChanged = data.name && data.name !== service.name
-    const descChanged =
-      data.semanticDescription && data.semanticDescription !== service.semanticDescription
+    // Check if embedding needs regeneration
+    const needsRegeneration = this.embeddingService.needsEmbeddingRegeneration(
+      service.name,
+      service.semanticDescription,
+      data.name,
+      data.semanticDescription,
+    )
 
-    if (nameChanged || descChanged) {
-      try {
-        if (this.aiService.isConfigured()) {
-          const newName = data.name ?? service.name
-          const newDesc = data.semanticDescription ?? service.semanticDescription
-          const embeddingText = `${newName}. ${newDesc}`
-
-          const embeddings = await this.aiService.embedding({
-            input: embeddingText,
-          })
-          const embeddingStr = `[${embeddings[0].join(',')}]`
-
-          if (data.semanticDescription) {
-            await this.prisma.$executeRaw`
-              UPDATE services
-              SET
-                description_embedding = ${embeddingStr}::vector,
-                semantic_description = ${data.semanticDescription},
-                updated_at = NOW()
-              WHERE id = ${id}
-            `
-          } else {
-            await this.prisma.$executeRaw`
-              UPDATE services
-              SET
-                description_embedding = ${embeddingStr}::vector,
-                updated_at = NOW()
-              WHERE id = ${id}
-            `
-          }
-
-          this.logger.log(`Updated embedding for service: ${id}`)
-        }
-      } catch (error) {
-        this.logger.error('Failed to update embedding:', error)
-      }
+    if (needsRegeneration) {
+      const newName = data.name ?? service.name
+      const newDesc = data.semanticDescription ?? service.semanticDescription
+      // Regenerate embedding asynchronously via the embedding service
+      await this.embeddingService.regenerateEmbedding(id, newName, newDesc)
     }
 
-    // Update other fields
-    const { semanticDescription: _, ...updateData } = data
-
+    // Update all fields including semanticDescription
     return this.prisma.service.update({
       where: { id },
-      data: {
-        ...updateData,
-        ...(data.semanticDescription && { semanticDescription: data.semanticDescription }),
-      },
+      data,
       include: {
         category: true,
         pricingTiers: true,

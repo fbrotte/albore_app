@@ -3,9 +3,33 @@ import { Injectable, Logger } from '@nestjs/common'
 import type { Prisma } from '@prisma/client'
 import { PrismaClient } from '@prisma/client'
 
+// Callback type for embedding regeneration
+type EmbeddingCallback = (
+  serviceId: string,
+  name: string,
+  semanticDescription: string,
+) => Promise<void>
+
 @Injectable()
 export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(PrismaService.name)
+  private embeddingCallback: EmbeddingCallback | null = null
+
+  /**
+   * Register a callback to regenerate embeddings when service name/description changes
+   * This is called by CatalogService to ensure embeddings stay in sync
+   */
+  registerEmbeddingCallback(callback: EmbeddingCallback) {
+    this.embeddingCallback = callback
+    this.logger.log('Embedding regeneration callback registered')
+  }
+
+  /**
+   * Get the registered embedding callback (used internally)
+   */
+  getEmbeddingCallback(): EmbeddingCallback | null {
+    return this.embeddingCallback
+  }
 
   async onModuleInit() {
     await this.$connect()
