@@ -82,7 +82,7 @@ export class CatalogTrpc {
           }),
 
         calculatePrice: this.trpc.protectedProcedure
-          .input(z.object({ serviceId: z.string().cuid(), quantity: z.number().positive() }))
+          .input(z.object({ serviceId: z.string().uuid(), quantity: z.number().positive() }))
           .query(async ({ input }) => {
             return this.catalogService.calculatePrice(input.serviceId, input.quantity)
           }),
@@ -92,7 +92,7 @@ export class CatalogTrpc {
 
       pricingTiers: this.trpc.router({
         list: this.trpc.protectedProcedure
-          .input(z.object({ serviceId: z.string().cuid() }))
+          .input(z.object({ serviceId: z.string().uuid() }))
           .query(async ({ input }) => {
             return this.catalogService.findPricingTiers(input.serviceId)
           }),

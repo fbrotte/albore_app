@@ -39,7 +39,7 @@ export type UpdateCategory = z.infer<typeof UpdateCategorySchema>
 // === SERVICE ===
 
 export const ServiceSchema = z.object({
-  id: z.string().cuid(),
+  id: z.string().uuid(),
   categoryId: z.string().cuid(),
   name: z.string(),
   semanticDescription: z.string(),
@@ -75,7 +75,7 @@ export type UpdateService = z.infer<typeof UpdateServiceSchema>
 
 export const PricingTierSchema = z.object({
   id: z.string().cuid(),
-  serviceId: z.string().cuid(),
+  serviceId: z.string().uuid(),
   minQuantity: z.number().int(),
   maxQuantity: z.number().int().nullable(),
   unitPrice: z.number(),
@@ -85,7 +85,7 @@ export const PricingTierSchema = z.object({
 export type PricingTier = z.infer<typeof PricingTierSchema>
 
 export const CreatePricingTierSchema = z.object({
-  serviceId: z.string().cuid(),
+  serviceId: z.string().uuid(),
   minQuantity: z.number().int().min(0),
   maxQuantity: z.number().int().optional(),
   unitPrice: z.number().nonnegative(),

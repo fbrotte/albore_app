@@ -62,7 +62,7 @@ export type UploadInvoice = z.infer<typeof UploadInvoiceSchema>
 // === INVOICE LINE ===
 
 export const MatchCandidateSchema = z.object({
-  serviceId: z.string().cuid(),
+  serviceId: z.string().uuid(),
   serviceName: z.string(),
   score: z.number(),
 })
@@ -77,7 +77,7 @@ export const InvoiceLineSchema = z.object({
   totalHt: z.number(),
   periodStart: z.date().nullable(),
   periodEnd: z.date().nullable(),
-  matchedServiceId: z.string().cuid().nullable(),
+  matchedServiceId: z.string().uuid().nullable(),
   matchCandidates: z.array(MatchCandidateSchema).nullable(),
   matchStatus: MatchStatusSchema,
   matchConfidence: z.number().nullable(),
@@ -88,7 +88,7 @@ export type InvoiceLine = z.infer<typeof InvoiceLineSchema>
 
 export const SetMatchSchema = z.object({
   lineId: z.string().cuid(),
-  serviceId: z.string().cuid(),
+  serviceId: z.string().uuid(),
 })
 export type SetMatch = z.infer<typeof SetMatchSchema>
 
