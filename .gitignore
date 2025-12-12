@@ -73,3 +73,6 @@ packages/shared/src/**/*.d.ts
 
 # Uploads
 apps/api/uploads/
+
+# Prototype (source mockup)
+albore_prototype/

@@ -139,6 +139,76 @@ export class AnalysesService {
     return stats
   }
 
+  async getDashboardStats(userId: string) {
+    // Get all clients for this user
+    const clients = await this.prisma.client.findMany({
+      where: { userId, deletedAt: null },
+    })
+
+    const clientIds = clients.map((c) => c.id)
+
+    // Get all analyses with their summaries
+    const analyses = await this.prisma.analysis.findMany({
+      where: {
+        clientId: { in: clientIds },
+        deletedAt: null,
+      },
+      include: {
+        client: true,
+        summaries: true,
+        invoices: true,
+        _count: { select: { invoices: true } },
+      },
+      orderBy: { updatedAt: 'desc' },
+      take: 10,
+    })
+
+    // Calculate aggregated stats
+    const allSummaries = analyses.flatMap((a) => a.summaries)
+    const allInvoices = analyses.flatMap((a) => a.invoices)
+
+    const totalSavings = allSummaries.reduce((sum, s) => sum + Number(s.savingAmount ?? 0), 0)
+
+    const savingsPercents = allSummaries
+      .filter((s) => s.savingPercent !== null)
+      .map((s) => Number(s.savingPercent))
+
+    const averageSavingsPercent =
+      savingsPercents.length > 0
+        ? savingsPercents.reduce((sum, p) => sum + p, 0) / savingsPercents.length
+        : 0
+
+    // Format recent analyses for dashboard
+    const recentAnalyses = analyses.map((a) => {
+      const analysisSavings = a.summaries.reduce((sum, s) => sum + Number(s.savingAmount ?? 0), 0)
+      const analysisTotal = a.summaries.reduce((sum, s) => sum + Number(s.avgMonthly ?? 0), 0)
+      const savingsPercent =
+        analysisTotal > 0 ? (analysisSavings / (analysisTotal + analysisSavings)) * 100 : 0
+
+      return {
+        id: a.id,
+        name: a.name,
+        status: a.status,
+        clientName: a.client.name,
+        clientCompany: a.client.company,
+        invoiceCount: a._count.invoices,
+        totalHt: a.invoices.reduce((sum, inv) => sum + Number(inv.totalHt ?? 0), 0),
+        totalSavings: analysisSavings,
+        savingsPercent: Math.round(savingsPercent * 10) / 10,
+        updatedAt: a.updatedAt,
+      }
+    })
+
+    return {
+      invoicesAnalyzed: allInvoices.length,
+      totalSavings: Math.round(totalSavings * 100) / 100,
+      averageSavingsPercent: Math.round(averageSavingsPercent * 10) / 10,
+      activeClients: clients.length,
+      analysesCount: analyses.length,
+      recentAnalyses,
+    }
+  }
+
   // Verify user has access to analysis
   async verifyAccess(analysisId: string, userId: string): Promise<void> {
     const analysis = await this.prisma.analysis.findFirst({

@@ -48,6 +48,10 @@ export class AnalysesTrpc {
         .query(async ({ input, ctx }) => {
           return this.analysesService.getStats(input.id, ctx.user!.userId)
         }),
+
+      getDashboardStats: this.trpc.protectedProcedure.query(async ({ ctx }) => {
+        return this.analysesService.getDashboardStats(ctx.user!.userId)
+      }),
     })
   }
 }

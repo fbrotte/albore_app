@@ -2,8 +2,14 @@ import { Routes, Route, Navigate } from 'react-router-dom'
 import { useIsAuthenticated, useAuthLoading } from './stores/auth.store'
 import LoginPage from './pages/LoginPage'
 import RegisterPage from './pages/RegisterPage'
-import DashboardPage from './pages/DashboardPage'
-import InvoiceTestPage from './pages/InvoiceTestPage'
+import AnalyticsDashboardPage from './pages/AnalyticsDashboardPage'
+import ClientsPage from './pages/ClientsPage'
+import ClientDetailPage from './pages/ClientDetailPage'
+import CreateAnalysisPage from './pages/CreateAnalysisPage'
+import AnalysisPage from './pages/AnalysisPage'
+import UploadInvoicePage from './pages/UploadInvoicePage'
+import AnalysisResultsPage from './pages/AnalysisResultsPage'
+import ProposalPage from './pages/ProposalPage'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useIsAuthenticated()
@@ -38,6 +44,7 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
 function App() {
   return (
     <Routes>
+      {/* Public Routes */}
       <Route
         path="/login"
         element={
@@ -54,22 +61,78 @@ function App() {
           </PublicRoute>
         }
       />
+
+      {/* Protected Routes */}
       <Route
         path="/dashboard"
         element={
           <ProtectedRoute>
-            <DashboardPage />
+            <AnalyticsDashboardPage />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Clients */}
+      <Route
+        path="/clients"
+        element={
+          <ProtectedRoute>
+            <ClientsPage />
           </ProtectedRoute>
         }
       />
       <Route
-        path="/test-invoice"
+        path="/clients/:id"
         element={
           <ProtectedRoute>
-            <InvoiceTestPage />
+            <ClientDetailPage />
           </ProtectedRoute>
         }
       />
+
+      {/* Analyses */}
+      <Route
+        path="/analyses/new"
+        element={
+          <ProtectedRoute>
+            <CreateAnalysisPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/analyses/:id"
+        element={
+          <ProtectedRoute>
+            <AnalysisPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/analyses/:id/upload"
+        element={
+          <ProtectedRoute>
+            <UploadInvoicePage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/analyses/:id/results"
+        element={
+          <ProtectedRoute>
+            <AnalysisResultsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/analyses/:id/proposal"
+        element={
+          <ProtectedRoute>
+            <ProposalPage />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Default redirect */}
       <Route path="/" element={<Navigate to="/dashboard" />} />
     </Routes>
   )
