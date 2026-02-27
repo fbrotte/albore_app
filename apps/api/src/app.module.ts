@@ -13,7 +13,7 @@ import { AiModule } from './modules/ai/ai.module'
 import { LangfuseModule } from './modules/langfuse'
 import { PythonModule } from './modules/python/python.module'
 import { LoggerModule } from './modules/logger/logger.module'
-// import { QueueModule } from './modules/queue/queue.module'; // Uncomment to enable
+import { QueueModule } from './modules/queue/queue.module'
 import { TrpcModule } from './trpc/trpc.module'
 // Invoice Analysis modules
 import { StorageModule } from './modules/storage/storage.module'
@@ -50,7 +50,7 @@ import { SummariesModule } from './modules/summaries/summaries.module'
     LangfuseModule,
     AiModule,
     PythonModule,
-    // QueueModule, // Uncomment to enable
+    QueueModule,
     TrpcModule,
     // Invoice Analysis modules
     StorageModule,

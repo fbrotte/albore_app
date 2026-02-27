@@ -46,7 +46,11 @@ export class VisionService {
     @Inject(LoggerService) private logger: LoggerService,
   ) {}
 
-  async extractInvoice(fileBuffer: Buffer, fileName: string): Promise<VisionExtractionResult> {
+  async extractInvoice(
+    fileBuffer: Buffer,
+    fileName: string,
+    model: 'haiku' | 'sonnet' = 'haiku',
+  ): Promise<VisionExtractionResult> {
     if (!this.aiService.isConfigured()) {
       throw new Error('AI service not configured')
     }
@@ -55,16 +59,17 @@ export class VisionService {
     const isPdf = fileName.toLowerCase().endsWith('.pdf')
     const mimeType = isPdf ? 'application/pdf' : 'image/png'
 
-    this.logger.log(`Extracting invoice from ${fileName} (${mimeType})`)
+    const modelName = model === 'sonnet' ? 'claude-sonnet' : 'claude-haiku'
+    this.logger.log(`Extracting invoice from ${fileName} (${mimeType}) using ${modelName}`)
 
     const tracing = this.langfuseService.startGeneration(
       {
         name: 'invoice-extraction',
-        tags: ['vision', 'extraction'],
+        tags: ['vision', 'extraction', model],
       },
       {
-        model: 'claude-sonnet',
-        input: { fileName, mimeType },
+        model: modelName,
+        input: { fileName, mimeType, model },
       },
     )
 
@@ -72,7 +77,7 @@ export class VisionService {
       const startTime = Date.now()
 
       const response = await this.aiService.chatCompletion({
-        model: 'claude-sonnet',
+        model: modelName,
         messages: [
           new SystemMessage(EXTRACTION_SYSTEM_PROMPT),
           new HumanMessage({

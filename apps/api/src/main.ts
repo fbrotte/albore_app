@@ -4,6 +4,11 @@ import { Logger } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { cleanupOpenApiDoc } from 'nestjs-zod'
 import * as pino from 'pino'
+import { createBullBoard } from '@bull-board/api'
+import { BullMQAdapter } from '@bull-board/api/bullMQAdapter'
+import { ExpressAdapter } from '@bull-board/express'
+import { getQueueToken } from '@nestjs/bullmq'
+import type { Queue } from 'bullmq'
 import { AppModule } from './app.module'
 import { TrpcRouter } from './trpc/trpc.router'
 
@@ -51,11 +56,26 @@ async function bootstrap() {
   const trpc = app.get(TrpcRouter)
   await trpc.applyMiddleware(app)
 
+  // Bull Board (Queue monitoring UI)
+  const serverAdapter = new ExpressAdapter()
+  serverAdapter.setBasePath('/admin/queues')
+
+  const invoiceQueue = app.get<Queue>(getQueueToken('invoice-processing'))
+
+  createBullBoard({
+    queues: [new BullMQAdapter(invoiceQueue)],
+    serverAdapter,
+  })
+
+  const expressApp = app.getHttpAdapter().getInstance()
+  expressApp.use('/admin/queues', serverAdapter.getRouter())
+
   await app.listen(port)
 
-  Logger.log(`🚀 Application is running on: http://localhost:${port}/api`)
-  Logger.log(`📚 Swagger documentation: http://localhost:${port}/api/docs`)
-  Logger.log(`🔌 tRPC endpoint: http://localhost:${port}/trpc`)
+  Logger.log(`Application is running on: http://localhost:${port}/api`)
+  Logger.log(`Swagger documentation: http://localhost:${port}/api/docs`)
+  Logger.log(`tRPC endpoint: http://localhost:${port}/trpc`)
+  Logger.log(`Bull Board (Queue UI): http://localhost:${port}/admin/queues`)
 }
 
 bootstrap()

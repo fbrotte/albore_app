@@ -1,10 +1,12 @@
-import { Injectable, NotFoundException, Inject } from '@nestjs/common'
+import { Injectable, NotFoundException, Inject, forwardRef } from '@nestjs/common'
 import { PrismaService } from '../prisma/prisma.service'
 import { StorageService } from '../storage/storage.service'
 import { AnalysesService } from '../analyses/analyses.service'
 import { VisionService } from './vision.service'
 import { LoggerService } from '../logger/logger.service'
-import type { VisionExtractionResult } from '@template-dev/shared'
+import type { InvoiceJobData } from '../queue/queue.service'
+import { QueueService } from '../queue/queue.service'
+import type { VisionExtractionResult, BulkUploadFile, BatchStatus } from '@template-dev/shared'
 
 @Injectable()
 export class InvoicesService {
@@ -14,6 +16,7 @@ export class InvoicesService {
     @Inject(AnalysesService) private analysesService: AnalysesService,
     @Inject(VisionService) private visionService: VisionService,
     @Inject(LoggerService) private logger: LoggerService,
+    @Inject(forwardRef(() => QueueService)) private queueService: QueueService,
   ) {}
 
   async findAll(analysisId: string) {
@@ -237,5 +240,173 @@ export class InvoicesService {
     await this.prisma.invoice.delete({ where: { id } })
 
     return { success: true }
+  }
+
+  // === BULK UPLOAD METHODS ===
+
+  async createBulkInvoices(
+    analysisId: string,
+    userId: string,
+    files: BulkUploadFile[],
+    batchId: string,
+  ): Promise<Array<{ invoiceId: string; jobId: string }>> {
+    // Verify access
+    await this.analysesService.verifyAccess(analysisId, userId)
+
+    const results: Array<{ invoiceId: string; jobId: string }> = []
+    const jobDataList: InvoiceJobData[] = []
+
+    // Create invoice records and prepare job data
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i]
+      const fileBuffer = Buffer.from(file.fileContent, 'base64')
+
+      // Save file
+      const filePath = await this.storageService.saveFile(
+        userId,
+        analysisId,
+        file.fileName,
+        fileBuffer,
+      )
+
+      // Create invoice record with PENDING status
+      const invoice = await this.prisma.invoice.create({
+        data: {
+          analysisId,
+          vendorName: 'En attente de traitement...',
+          filePath,
+          fileName: file.fileName,
+          extractionStatus: 'PENDING',
+        },
+      })
+
+      jobDataList.push({
+        invoiceId: invoice.id,
+        analysisId,
+        userId,
+        fileName: file.fileName,
+        filePath,
+        batchId,
+        totalInBatch: files.length,
+        indexInBatch: i,
+      })
+
+      results.push({ invoiceId: invoice.id, jobId: '' })
+    }
+
+    // Add all jobs to queue
+    const jobs = await this.queueService.addBulkInvoiceJobs(jobDataList)
+
+    // Update results with job IDs and invoice status
+    for (let i = 0; i < results.length; i++) {
+      results[i].jobId = jobs[i].id!
+
+      await this.prisma.invoice.update({
+        where: { id: results[i].invoiceId },
+        data: { extractionStatus: 'PROCESSING' },
+      })
+    }
+
+    // Update analysis status
+    await this.prisma.analysis.update({
+      where: { id: analysisId },
+      data: { status: 'IMPORTING' },
+    })
+
+    this.logger.log(
+      `Created ${results.length} invoices in batch ${batchId} for analysis ${analysisId}`,
+    )
+
+    return results
+  }
+
+  async retryInvoice(
+    invoiceId: string,
+    userId: string,
+  ): Promise<{ invoiceId: string; jobId: string }> {
+    const invoice = await this.findById(invoiceId)
+
+    // Verify access
+    const analysis = await this.prisma.analysis.findUnique({
+      where: { id: invoice.analysisId },
+      include: { client: true },
+    })
+
+    if (!analysis || analysis.client.userId !== userId) {
+      throw new NotFoundException(`Invoice ${invoiceId} not found`)
+    }
+
+    // Delete existing lines
+    await this.prisma.invoiceLine.deleteMany({ where: { invoiceId } })
+
+    // Reset invoice status
+    await this.prisma.invoice.update({
+      where: { id: invoiceId },
+      data: {
+        extractionStatus: 'PENDING',
+        extractionError: null,
+        vendorName: 'En attente de traitement...',
+      },
+    })
+
+    // Add job to queue
+    const jobData: InvoiceJobData = {
+      invoiceId,
+      analysisId: invoice.analysisId,
+      userId,
+      fileName: invoice.fileName,
+      filePath: invoice.filePath,
+      batchId: `retry-${invoiceId}`,
+      totalInBatch: 1,
+      indexInBatch: 0,
+    }
+
+    const jobs = await this.queueService.addBulkInvoiceJobs([jobData])
+
+    this.logger.log(`Retry queued for invoice ${invoiceId}, job ${jobs[0].id}`)
+
+    return { invoiceId, jobId: jobs[0].id! }
+  }
+
+  async getBatchStatus(batchId: string, analysisId: string): Promise<BatchStatus> {
+    const batchJobs = await this.queueService.getJobsByBatchId(batchId)
+
+    // Get invoice errors from DB for failed jobs
+    const invoiceIds = batchJobs.map((j) => j.invoiceId)
+    const invoices = await this.prisma.invoice.findMany({
+      where: { id: { in: invoiceIds } },
+      select: { id: true, extractionError: true },
+    })
+    const errorMap = new Map(invoices.map((i) => [i.id, i.extractionError]))
+
+    const jobs = batchJobs.map((job) => ({
+      jobId: job.id,
+      invoiceId: job.invoiceId,
+      state: job.state as 'waiting' | 'active' | 'completed' | 'failed' | 'delayed',
+      progress: job.progress
+        ? {
+            step: job.progress.step as
+              | 'pending'
+              | 'extracting'
+              | 'validating'
+              | 'retrying_sonnet'
+              | 'saving'
+              | 'completed'
+              | 'failed',
+            message: job.progress.message,
+          }
+        : null,
+      fileName: job.fileName,
+      error: errorMap.get(job.invoiceId) || null,
+    }))
+
+    return {
+      batchId,
+      analysisId,
+      totalJobs: jobs.length,
+      completedJobs: jobs.filter((j) => j.state === 'completed').length,
+      failedJobs: jobs.filter((j) => j.state === 'failed').length,
+      jobs,
+    }
   }
 }
