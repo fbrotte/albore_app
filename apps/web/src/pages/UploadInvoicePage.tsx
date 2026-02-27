@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
   Upload as UploadIcon,
@@ -7,121 +7,140 @@ import {
   X,
   ArrowLeft,
   Loader2,
-  FileSearch,
-  Brain,
-  TrendingUp,
+  FolderOpen,
+  AlertCircle,
+  RotateCcw,
 } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { ProgressBar } from '@/components/shared/ProgressBar'
 import { trpc } from '@/lib/trpc'
+import type { JobStatus } from '@template-dev/shared'
 
-type AnalysisStep = {
-  id: number
-  text: string
-  icon: React.ComponentType<{ className?: string }>
-  color: string
+type FileWithStatus = {
+  file: File
+  status: 'pending' | 'uploading' | 'processing' | 'completed' | 'failed' | 'retrying'
+  progress?: JobStatus['progress']
+  error?: string
+  invoiceId?: string
 }
-
-const analysisSteps: AnalysisStep[] = [
-  { id: 0, text: 'Extraction du texte en cours...', icon: FileSearch, color: 'text-blue-600' },
-  {
-    id: 1,
-    text: 'Analyse par intelligence artificielle...',
-    icon: Brain,
-    color: 'text-purple-600',
-  },
-  {
-    id: 2,
-    text: 'Identification des postes de depense...',
-    icon: TrendingUp,
-    color: 'text-orange-600',
-  },
-  {
-    id: 3,
-    text: 'Comparaison avec les grilles tarifaires...',
-    icon: CheckCircle,
-    color: 'text-green-600',
-  },
-]
 
 export default function UploadInvoicePage() {
   const { id: analysisId } = useParams<{ id: string }>()
   const navigate = useNavigate()
 
+  const [files, setFiles] = useState<FileWithStatus[]>([])
   const [isDragging, setIsDragging] = useState(false)
-  const [file, setFile] = useState<File | null>(null)
-  const [uploadProgress, setUploadProgress] = useState(0)
   const [isUploading, setIsUploading] = useState(false)
-  const [uploadComplete, setUploadComplete] = useState(false)
-  const [isAnalyzing, setIsAnalyzing] = useState(false)
-  const [analysisProgress, setAnalysisProgress] = useState(0)
-  const [currentStep, setCurrentStep] = useState(0)
+  const [batchId, setBatchId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const folderInputRef = useRef<HTMLInputElement>(null)
 
   const { data: analysis } = trpc.analyses.getById.useQuery(
     { id: analysisId! },
     { enabled: !!analysisId },
   )
 
-  const uploadMutation = trpc.invoices.upload.useMutation({
-    onSuccess: async () => {
-      setUploadComplete(true)
+  const bulkUploadMutation = trpc.invoices.bulkUpload.useMutation({
+    onSuccess: (data) => {
+      setBatchId(data.batchId)
       setIsUploading(false)
-      // Start analysis animation
-      setIsAnalyzing(true)
+      // Update all files to processing status and assign invoiceIds
+      setFiles((prev) =>
+        prev.map((f) => ({
+          ...f,
+          status: 'processing' as const,
+          invoiceId: data.fileToInvoiceMap[f.file.name],
+        })),
+      )
     },
     onError: (err) => {
       setError(err.message)
       setIsUploading(false)
+      setFiles((prev) => prev.map((f) => ({ ...f, status: 'failed' as const, error: err.message })))
     },
   })
 
+  // Poll for batch status
+  const batchStatusQuery = trpc.invoices.getBatchStatus.useQuery(
+    { batchId: batchId!, analysisId: analysisId! },
+    {
+      enabled: !!batchId && !!analysisId,
+      refetchInterval: 2000,
+      refetchIntervalInBackground: true,
+    },
+  )
+
+  // Update file statuses based on batch status
+  useEffect(() => {
+    if (!batchStatusQuery.data) return
+
+    const { jobs, completedJobs, failedJobs, totalJobs } = batchStatusQuery.data
+
+    // Update individual file statuses
+    setFiles((prev) => {
+      const updated = prev.map((f) => {
+        const job = jobs.find((j) => j.fileName === f.file.name)
+        if (!job) return f
+
+        // Don't update if currently retrying (wait for new job to appear)
+        if (f.status === 'retrying' && job.state === 'failed') return f
+
+        let status: FileWithStatus['status'] = 'processing'
+        if (job.state === 'completed') status = 'completed'
+        else if (job.state === 'failed') status = 'failed'
+
+        return {
+          ...f,
+          status,
+          progress: job.progress,
+          error: job.error || undefined,
+          invoiceId: job.invoiceId,
+        }
+      })
+
+      // Check if all jobs are done (excluding retrying)
+      const retryingCount = updated.filter((f) => f.status === 'retrying').length
+      if (completedJobs + failedJobs === totalJobs && totalJobs > 0 && retryingCount === 0) {
+        // All done - navigate to results after a short delay (only if no failures)
+        if (failedJobs === 0) {
+          setTimeout(() => {
+            navigate(`/analyses/${analysisId}/results`)
+          }, 1500)
+        }
+      }
+
+      return updated
+    })
+  }, [batchStatusQuery.data, analysisId, navigate])
+
   const matchAllMutation = trpc.invoiceLines.matchAll.useMutation({
     onSuccess: () => {
-      // Navigate to results after matching
       navigate(`/analyses/${analysisId}/results`)
     },
     onError: (err) => {
       setError(err.message)
-      setIsAnalyzing(false)
     },
   })
 
-  // Analysis progress animation
-  useEffect(() => {
-    if (!isAnalyzing) return
-
-    const progressInterval = setInterval(() => {
-      setAnalysisProgress((prev) => {
-        if (prev >= 100) {
-          clearInterval(progressInterval)
-          // Trigger matching when progress complete
-          if (analysisId) {
-            matchAllMutation.mutate({ analysisId })
-          }
-          return 100
-        }
-        return prev + 2
-      })
-    }, 100)
-
-    const stepInterval = setInterval(() => {
-      setCurrentStep((prev) => {
-        if (prev < analysisSteps.length - 1) {
-          return prev + 1
-        }
-        clearInterval(stepInterval)
-        return prev
-      })
-    }, 1250)
-
-    return () => {
-      clearInterval(progressInterval)
-      clearInterval(stepInterval)
-    }
-  }, [isAnalyzing, analysisId])
+  const retryMutation = trpc.invoices.retryInvoice.useMutation({
+    onSuccess: (_, variables) => {
+      // Mark the file as retrying
+      setFiles((prev) =>
+        prev.map((f) =>
+          f.invoiceId === variables.invoiceId
+            ? { ...f, status: 'retrying' as const, error: undefined }
+            : f,
+        ),
+      )
+    },
+    onError: (err) => {
+      setError(`Erreur lors du retry: ${err.message}`)
+    },
+  })
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault()
@@ -136,165 +155,227 @@ export default function UploadInvoicePage() {
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault()
     setIsDragging(false)
-    const droppedFile = e.dataTransfer.files[0]
-    if (
-      droppedFile &&
-      (droppedFile.type === 'application/pdf' || droppedFile.type.startsWith('image/'))
-    ) {
-      handleFile(droppedFile)
-    } else {
-      setError('Format non supporte. Utilisez un fichier PDF ou une image.')
+
+    const droppedFiles = Array.from(e.dataTransfer.files).filter(
+      (file) => file.type === 'application/pdf' || file.type.startsWith('image/'),
+    )
+
+    if (droppedFiles.length === 0) {
+      setError('Format non supporte. Utilisez des fichiers PDF ou images.')
+      return
     }
+
+    addFiles(droppedFiles)
   }, [])
 
   const handleFileInput = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFile = e.target.files?.[0]
-    if (selectedFile) {
-      handleFile(selectedFile)
+    const selectedFiles = Array.from(e.target.files || [])
+    if (selectedFiles.length > 0) {
+      addFiles(selectedFiles)
     }
+    // Reset input
+    e.target.value = ''
   }, [])
 
-  const handleFile = (selectedFile: File) => {
-    setFile(selectedFile)
-    setError(null)
-    simulateUpload(selectedFile)
-  }
-
-  const simulateUpload = async (uploadedFile: File) => {
-    setIsUploading(true)
-    setUploadProgress(0)
-
-    // Simulate progress for UX
-    const interval = setInterval(() => {
-      setUploadProgress((prev) => {
-        if (prev >= 90) {
-          clearInterval(interval)
-          return 90
-        }
-        return prev + 10
-      })
-    }, 200)
-
-    // Convert file to base64
-    const reader = new FileReader()
-    reader.onload = async () => {
-      const base64 = (reader.result as string).split(',')[1]
-
-      // Upload to backend
-      if (analysisId) {
-        uploadMutation.mutate({
-          analysisId,
-          fileName: uploadedFile.name,
-          fileContent: base64,
-        })
-      }
-
-      clearInterval(interval)
-      setUploadProgress(100)
+  const handleFolderInput = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFiles = Array.from(e.target.files || []).filter(
+      (file) => file.type === 'application/pdf' || file.type.startsWith('image/'),
+    )
+    if (selectedFiles.length > 0) {
+      addFiles(selectedFiles)
+    } else {
+      setError('Aucun fichier PDF ou image trouve dans ce dossier.')
     }
-    reader.readAsDataURL(uploadedFile)
-  }
+    // Reset input
+    e.target.value = ''
+  }, [])
 
-  const handleRemoveFile = () => {
-    setFile(null)
-    setUploadProgress(0)
-    setUploadComplete(false)
+  const addFiles = (newFiles: File[]) => {
     setError(null)
+    const fileWithStatus: FileWithStatus[] = newFiles.map((file) => ({
+      file,
+      status: 'pending',
+    }))
+
+    setFiles((prev) => {
+      // Avoid duplicates by filename
+      const existingNames = new Set(prev.map((f) => f.file.name))
+      const uniqueNew = fileWithStatus.filter((f) => !existingNames.has(f.file.name))
+      return [...prev, ...uniqueNew]
+    })
   }
 
-  // Analysis Loading View
-  if (isAnalyzing) {
-    const CurrentIcon = analysisSteps[currentStep].icon
+  const removeFile = (fileName: string) => {
+    setFiles((prev) => prev.filter((f) => f.file.name !== fileName))
+  }
 
+  const handleUpload = async () => {
+    if (files.length === 0 || !analysisId) return
+
+    setIsUploading(true)
+    setError(null)
+    setFiles((prev) => prev.map((f) => ({ ...f, status: 'uploading' as const })))
+
+    // Convert all files to base64
+    const filePromises = files.map(
+      (f) =>
+        new Promise<{ fileName: string; fileContent: string }>((resolve, reject) => {
+          const reader = new FileReader()
+          reader.onload = () => {
+            const base64 = (reader.result as string).split(',')[1]
+            resolve({ fileName: f.file.name, fileContent: base64 })
+          }
+          reader.onerror = reject
+          reader.readAsDataURL(f.file)
+        }),
+    )
+
+    try {
+      const filesData = await Promise.all(filePromises)
+      bulkUploadMutation.mutate({
+        analysisId,
+        files: filesData,
+      })
+    } catch {
+      setError('Erreur lors de la lecture des fichiers')
+      setIsUploading(false)
+    }
+  }
+
+  const completedCount = files.filter((f) => f.status === 'completed').length
+  const failedCount = files.filter((f) => f.status === 'failed').length
+  const processingCount = files.filter((f) => f.status === 'processing').length
+  const retryingCount = files.filter((f) => f.status === 'retrying').length
+  const isProcessing = batchId && (processingCount > 0 || retryingCount > 0)
+  const allDone =
+    batchId &&
+    completedCount + failedCount === files.length &&
+    files.length > 0 &&
+    retryingCount === 0
+
+  // Processing View
+  if (isProcessing || allDone) {
     return (
       <AppLayout>
-        <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center">
-          <div className="w-full max-w-2xl px-4">
-            <Card>
-              <CardContent className="p-8 text-center">
-                {/* Animated Icon */}
-                <div className="mb-8 flex justify-center">
-                  <div className="relative">
-                    <div className="absolute inset-0 animate-ping rounded-full bg-primary/20 opacity-75" />
-                    <div className="relative rounded-full bg-primary/10 p-8">
-                      <CurrentIcon
-                        className={`h-16 w-16 ${analysisSteps[currentStep].color} animate-pulse`}
-                      />
-                    </div>
-                  </div>
+        <div className="mx-auto max-w-4xl px-4 py-12 sm:px-6 lg:px-8">
+          <div className="mb-8 text-center">
+            <h1 className="mb-4 text-3xl font-bold">
+              {allDone ? 'Traitement termine !' : 'Traitement en cours...'}
+            </h1>
+            <p className="text-lg text-muted-foreground">
+              {completedCount} / {files.length} documents traites
+              {failedCount > 0 && ` (${failedCount} erreur${failedCount > 1 ? 's' : ''})`}
+            </p>
+          </div>
+
+          {/* Global Progress */}
+          <Card className="mb-6">
+            <CardContent className="p-6">
+              <div className="mb-4">
+                <div className="mb-2 flex justify-between text-sm">
+                  <span className="text-muted-foreground">Progression globale</span>
+                  <span className="font-semibold text-primary">
+                    {Math.round(((completedCount + failedCount) / files.length) * 100)}%
+                  </span>
                 </div>
+                <ProgressBar
+                  progress={((completedCount + failedCount) / files.length) * 100}
+                  color={failedCount > 0 ? 'warning' : 'primary'}
+                />
+              </div>
+            </CardContent>
+          </Card>
 
-                <h1 className="mb-4 text-3xl font-bold">Analyse en cours...</h1>
-
-                <div className="mb-8 h-8">
-                  <p className="animate-pulse text-lg text-muted-foreground">
-                    {analysisSteps[currentStep].text}
-                  </p>
-                </div>
-
-                {/* Progress Bar */}
-                <div className="mb-8">
-                  <div className="mb-2 flex justify-between text-sm">
-                    <span className="text-muted-foreground">Progression</span>
-                    <span className="font-semibold text-primary">{analysisProgress}%</span>
-                  </div>
-                  <ProgressBar progress={analysisProgress} color="primary" />
-                </div>
-
-                {/* Steps List */}
-                <div className="space-y-3">
-                  {analysisSteps.map((step, index) => {
-                    const StepIcon = step.icon
-                    const isCompleted = index < currentStep
-                    const isCurrent = index === currentStep
-
-                    return (
+          {/* File List with Status */}
+          <Card>
+            <CardContent className="p-6">
+              <div className="space-y-3">
+                {files.map((f) => (
+                  <div
+                    key={f.file.name}
+                    className={`flex items-center justify-between rounded-lg p-4 ${
+                      f.status === 'completed'
+                        ? 'border border-success/20 bg-success/10'
+                        : f.status === 'failed'
+                          ? 'border border-destructive/20 bg-destructive/10'
+                          : 'bg-muted'
+                    }`}
+                  >
+                    <div className="flex items-center space-x-4">
                       <div
-                        key={step.id}
-                        className={`transition-smooth flex items-center space-x-3 rounded-lg p-3 ${
-                          isCurrent
-                            ? 'border border-primary/20 bg-primary/10'
-                            : isCompleted
-                              ? 'border border-success/20 bg-success/10'
-                              : 'bg-muted'
+                        className={`rounded-lg p-2 ${
+                          f.status === 'completed'
+                            ? 'bg-success/20'
+                            : f.status === 'failed'
+                              ? 'bg-destructive/20'
+                              : 'bg-primary/20'
                         }`}
                       >
-                        <div
-                          className={`rounded-lg p-2 ${
-                            isCurrent ? 'bg-primary/20' : isCompleted ? 'bg-success/20' : 'bg-muted'
-                          }`}
-                        >
-                          {isCompleted ? (
-                            <CheckCircle className="h-5 w-5 text-success" />
-                          ) : (
-                            <StepIcon
-                              className={`h-5 w-5 ${isCurrent ? step.color : 'text-muted-foreground'}`}
-                            />
-                          )}
-                        </div>
-                        <span
-                          className={`text-sm ${
-                            isCurrent || isCompleted ? 'font-medium' : 'text-muted-foreground'
-                          }`}
-                        >
-                          {step.text}
-                        </span>
-                        {isCurrent && (
-                          <Loader2 className="ml-auto h-5 w-5 animate-spin text-primary" />
+                        {f.status === 'completed' ? (
+                          <CheckCircle className="h-5 w-5 text-success" />
+                        ) : f.status === 'failed' ? (
+                          <AlertCircle className="h-5 w-5 text-destructive" />
+                        ) : f.status === 'processing' || f.status === 'retrying' ? (
+                          <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                        ) : (
+                          <FileText className="h-5 w-5 text-primary" />
                         )}
                       </div>
-                    )
-                  })}
-                </div>
+                      <div className="flex-1">
+                        <p className="font-medium">{f.file.name}</p>
+                        <p
+                          className={`text-sm ${f.status === 'failed' ? 'text-destructive' : 'text-muted-foreground'}`}
+                        >
+                          {f.status === 'retrying'
+                            ? 'Nouvelle tentative en cours...'
+                            : f.progress?.message ||
+                              (f.status === 'completed'
+                                ? 'Extraction terminee'
+                                : f.status === 'failed'
+                                  ? f.error || 'Erreur inconnue'
+                                  : 'En attente...')}
+                        </p>
+                      </div>
+                    </div>
+                    {/* Retry button for failed files */}
+                    {f.status === 'failed' && f.invoiceId && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => retryMutation.mutate({ invoiceId: f.invoiceId! })}
+                        disabled={retryMutation.isPending}
+                      >
+                        <RotateCcw className="mr-2 h-4 w-4" />
+                        Reessayer
+                      </Button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
 
-                <div className="mt-8 rounded-lg bg-muted p-4">
-                  <p className="text-sm text-muted-foreground">
-                    L'analyse prend generalement entre 10 et 30 secondes. Merci de patienter...
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+          {/* Action after completion */}
+          {allDone && (
+            <div className="mt-6 flex justify-center space-x-4">
+              <Button
+                size="lg"
+                onClick={() => {
+                  if (analysisId) matchAllMutation.mutate({ analysisId })
+                }}
+                disabled={matchAllMutation.isPending}
+              >
+                {matchAllMutation.isPending ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Matching en cours...
+                  </>
+                ) : (
+                  'Voir les resultats'
+                )}
+              </Button>
+            </div>
+          )}
         </div>
       </AppLayout>
     )
@@ -314,119 +395,122 @@ export default function UploadInvoicePage() {
         </Button>
 
         <div className="mb-8 text-center">
-          <h1 className="mb-4 text-4xl font-bold">Analyser une nouvelle facture</h1>
+          <h1 className="mb-4 text-4xl font-bold">Importer des factures</h1>
           <p className="text-lg text-muted-foreground">
             {analysis?.client?.name && (
               <>
                 Client: <strong>{analysis.client.name}</strong> -{' '}
               </>
             )}
-            Deposez votre facture PDF pour decouvrir vos economies potentielles
+            Deposez vos factures PDF pour decouvrir vos economies potentielles
           </p>
         </div>
 
         <Card className="mb-6">
           <CardContent className="p-6">
             {/* Drag & Drop Zone */}
-            {!file && (
-              <div
-                onDragOver={handleDragOver}
-                onDragLeave={handleDragLeave}
-                onDrop={handleDrop}
-                className={`transition-smooth cursor-pointer rounded-xl border-2 border-dashed p-12 text-center ${
-                  isDragging
-                    ? 'scale-[1.02] border-primary bg-primary/5'
-                    : 'border-muted-foreground/25 hover:border-primary hover:bg-muted/50'
-                }`}
-              >
-                <input
-                  type="file"
-                  accept=".pdf,image/*"
-                  onChange={handleFileInput}
-                  className="hidden"
-                  id="file-upload"
-                />
-                <label htmlFor="file-upload" className="cursor-pointer">
-                  <div className="flex flex-col items-center space-y-4">
-                    <div
-                      className={`transition-smooth ${isDragging ? 'scale-125 text-primary' : 'text-muted-foreground'}`}
-                    >
-                      <UploadIcon className="h-16 w-16" />
-                    </div>
-                    <div>
-                      <p className="mb-2 text-xl font-semibold">Deposez votre facture PDF ici</p>
-                      <p className="text-muted-foreground">
-                        ou cliquez pour selectionner un fichier
-                      </p>
-                    </div>
-                    <Button variant="default" size="lg">
-                      Selectionner un fichier
-                    </Button>
-                    <p className="text-sm text-muted-foreground">
-                      Formats acceptes : PDF, images (max 10 Mo)
-                    </p>
-                  </div>
-                </label>
+            <div
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+              className={`transition-smooth cursor-pointer rounded-xl border-2 border-dashed p-8 text-center ${
+                isDragging
+                  ? 'scale-[1.02] border-primary bg-primary/5'
+                  : 'border-muted-foreground/25 hover:border-primary hover:bg-muted/50'
+              }`}
+            >
+              <input
+                type="file"
+                ref={fileInputRef}
+                accept=".pdf,image/*"
+                multiple
+                onChange={handleFileInput}
+                className="hidden"
+              />
+              <input
+                type="file"
+                ref={folderInputRef}
+                // @ts-expect-error webkitdirectory is not in types
+                webkitdirectory=""
+                directory=""
+                onChange={handleFolderInput}
+                className="hidden"
+              />
+
+              <div className="flex flex-col items-center space-y-4">
+                <div
+                  className={`transition-smooth ${isDragging ? 'scale-125 text-primary' : 'text-muted-foreground'}`}
+                >
+                  <UploadIcon className="h-12 w-12" />
+                </div>
+                <div>
+                  <p className="mb-2 text-xl font-semibold">Deposez vos factures ici</p>
+                  <p className="text-muted-foreground">ou utilisez les boutons ci-dessous</p>
+                </div>
+                <div className="flex space-x-4">
+                  <Button variant="default" size="lg" onClick={() => fileInputRef.current?.click()}>
+                    <FileText className="mr-2 h-4 w-4" />
+                    Selectionner des fichiers
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="lg"
+                    onClick={() => folderInputRef.current?.click()}
+                  >
+                    <FolderOpen className="mr-2 h-4 w-4" />
+                    Importer un dossier
+                  </Button>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Formats acceptes : PDF, images (max 50 fichiers)
+                </p>
+              </div>
+            </div>
+
+            {/* Error Message */}
+            {error && (
+              <div className="mt-4 flex items-center space-x-2 rounded-lg border border-destructive/20 bg-destructive/10 p-4">
+                <X className="h-5 w-5 text-destructive" />
+                <p className="font-medium text-destructive">{error}</p>
               </div>
             )}
 
-            {/* File Selected */}
-            {file && (
-              <div className="space-y-4">
-                <div className="flex items-center justify-between rounded-lg bg-muted p-4">
-                  <div className="flex items-center space-x-4">
-                    <div
-                      className={`rounded-lg p-3 ${uploadComplete ? 'bg-success/20' : 'bg-primary/20'}`}
-                    >
-                      {uploadComplete ? (
-                        <CheckCircle className="h-8 w-8 text-success" />
-                      ) : (
-                        <FileText className="h-8 w-8 text-primary" />
-                      )}
-                    </div>
-                    <div>
-                      <p className="font-semibold">{file.name}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {(file.size / 1024).toFixed(2)} Ko
-                      </p>
-                    </div>
-                  </div>
-                  {!isUploading && (
-                    <button
-                      onClick={handleRemoveFile}
-                      className="transition-smooth rounded-lg p-2 hover:bg-muted-foreground/10"
-                    >
-                      <X className="h-5 w-5 text-muted-foreground" />
-                    </button>
-                  )}
+            {/* Selected Files List */}
+            {files.length > 0 && (
+              <div className="mt-6">
+                <div className="mb-4 flex items-center justify-between">
+                  <h3 className="font-semibold">
+                    {files.length} fichier{files.length > 1 ? 's' : ''} selectionne
+                    {files.length > 1 ? 's' : ''}
+                  </h3>
+                  <Button variant="ghost" size="sm" onClick={() => setFiles([])}>
+                    Tout supprimer
+                  </Button>
                 </div>
-
-                {/* Progress Bar */}
-                {isUploading && (
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Upload en cours...</span>
-                      <span className="font-semibold text-primary">{uploadProgress}%</span>
+                <div className="max-h-64 space-y-2 overflow-y-auto">
+                  {files.map((f) => (
+                    <div
+                      key={f.file.name}
+                      className="flex items-center justify-between rounded-lg bg-muted p-3"
+                    >
+                      <div className="flex items-center space-x-3">
+                        <FileText className="h-5 w-5 text-primary" />
+                        <div>
+                          <p className="text-sm font-medium">{f.file.name}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {(f.file.size / 1024).toFixed(1)} Ko
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => removeFile(f.file.name)}
+                        className="transition-smooth rounded-lg p-1 hover:bg-muted-foreground/10"
+                      >
+                        <X className="h-4 w-4 text-muted-foreground" />
+                      </button>
                     </div>
-                    <ProgressBar progress={uploadProgress} color="primary" />
-                  </div>
-                )}
-
-                {/* Success Message */}
-                {uploadComplete && (
-                  <div className="flex items-center space-x-2 rounded-lg border border-success/20 bg-success/10 p-4">
-                    <CheckCircle className="h-5 w-5 text-success" />
-                    <p className="font-medium text-success">Fichier telecharge avec succes !</p>
-                  </div>
-                )}
-
-                {/* Error Message */}
-                {error && (
-                  <div className="flex items-center space-x-2 rounded-lg border border-destructive/20 bg-destructive/10 p-4">
-                    <X className="h-5 w-5 text-destructive" />
-                    <p className="font-medium text-destructive">{error}</p>
-                  </div>
-                )}
+                  ))}
+                </div>
               </div>
             )}
           </CardContent>
@@ -439,12 +523,23 @@ export default function UploadInvoicePage() {
           </Button>
           <Button
             size="lg"
-            disabled={!uploadComplete || isAnalyzing}
-            onClick={() => setIsAnalyzing(true)}
+            disabled={files.length === 0 || isUploading}
+            onClick={handleUpload}
             className="flex items-center space-x-2"
           >
-            <span>Analyser cette facture</span>
-            <FileText className="h-5 w-5" />
+            {isUploading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Envoi en cours...
+              </>
+            ) : (
+              <>
+                <span>
+                  Analyser {files.length} facture{files.length > 1 ? 's' : ''}
+                </span>
+                <UploadIcon className="h-5 w-5" />
+              </>
+            )}
           </Button>
         </div>
 
@@ -455,7 +550,7 @@ export default function UploadInvoicePage() {
             <ul className="space-y-2 text-sm text-muted-foreground">
               <li className="flex items-start">
                 <span className="mr-2 text-primary">1.</span>
-                <span>Extraction automatique des informations de votre facture</span>
+                <span>Extraction automatique des informations de vos factures</span>
               </li>
               <li className="flex items-start">
                 <span className="mr-2 text-primary">2.</span>
