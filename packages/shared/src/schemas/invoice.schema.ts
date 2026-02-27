@@ -99,3 +99,56 @@ export const UpdateInvoiceLineSchema = z.object({
   totalHt: z.number().optional(),
 })
 export type UpdateInvoiceLine = z.infer<typeof UpdateInvoiceLineSchema>
+
+// === BULK UPLOAD ===
+
+export const BulkUploadFileSchema = z.object({
+  fileName: z.string(),
+  fileContent: z.string(), // Base64 encoded
+})
+export type BulkUploadFile = z.infer<typeof BulkUploadFileSchema>
+
+export const BulkUploadInvoiceSchema = z.object({
+  analysisId: z.string().cuid(),
+  files: z.array(BulkUploadFileSchema).min(1).max(50),
+})
+export type BulkUploadInvoice = z.infer<typeof BulkUploadInvoiceSchema>
+
+// === JOB STATUS ===
+
+export const JobProgressStepSchema = z.enum([
+  'pending',
+  'extracting',
+  'validating',
+  'retrying_sonnet',
+  'saving',
+  'completed',
+  'failed',
+])
+export type JobProgressStep = z.infer<typeof JobProgressStepSchema>
+
+export const JobProgressSchema = z.object({
+  step: JobProgressStepSchema,
+  message: z.string(),
+})
+export type JobProgress = z.infer<typeof JobProgressSchema>
+
+export const JobStatusSchema = z.object({
+  jobId: z.string(),
+  invoiceId: z.string().cuid(),
+  state: z.enum(['waiting', 'active', 'completed', 'failed', 'delayed']),
+  progress: JobProgressSchema.nullable(),
+  fileName: z.string(),
+  error: z.string().nullable(),
+})
+export type JobStatus = z.infer<typeof JobStatusSchema>
+
+export const BatchStatusSchema = z.object({
+  batchId: z.string().uuid(),
+  analysisId: z.string().cuid(),
+  totalJobs: z.number(),
+  completedJobs: z.number(),
+  failedJobs: z.number(),
+  jobs: z.array(JobStatusSchema),
+})
+export type BatchStatus = z.infer<typeof BatchStatusSchema>
