@@ -18,10 +18,10 @@ Le `make setup` crée automatiquement le fichier `.env` avec :
 
 The application will be available at:
 
-- Frontend: http://localhost:5173
-- API: http://localhost:3000/api
-- Swagger Docs: http://localhost:3000/api/docs
-- tRPC: http://localhost:3000/trpc
+- Frontend: http://localhost:8013
+- API: http://localhost:8012/api
+- Swagger Docs: http://localhost:8012/api/docs
+- tRPC: http://localhost:8012/trpc
 
 ## Default Credentials
 

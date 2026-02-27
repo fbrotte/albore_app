@@ -24,11 +24,11 @@ async function bootstrap() {
   })
 
   const configService = app.get(ConfigService)
-  const port = configService.get('PORT', 3000)
+  const port = configService.get('PORT', 8012)
 
   // CORS
   app.enableCors({
-    origin: ['http://localhost:5173'],
+    origin: ['http://localhost:8013'],
     credentials: true,
   })
 

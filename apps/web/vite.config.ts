@@ -10,15 +10,15 @@ export default defineConfig({
     },
   },
   server: {
-    port: 5173,
+    port: 8013,
     proxy: {
       '/api': {
-        target: 'http://localhost:3000',
+        target: 'http://localhost:8012',
         changeOrigin: true,
         timeout: 120000, // 2 minutes for long operations
       },
       '/trpc': {
-        target: 'http://localhost:3000',
+        target: 'http://localhost:8012',
         changeOrigin: true,
         timeout: 120000, // 2 minutes for long operations like invoice extraction
       },
