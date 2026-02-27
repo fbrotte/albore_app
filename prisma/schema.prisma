@@ -266,7 +266,7 @@ model AnalysisSummary {
   ourPrice         Decimal?       @db.Decimal(12, 2) // Our unit price (from service basePrice)
   ourPriceNote     String?
   savingAmount     Decimal?       @db.Decimal(12, 2) // Monthly saving = (avgUnitPrice - ourPrice) * avgQuantity
-  savingPercent    Decimal?       @db.Decimal(5, 2)
+  savingPercent    Decimal?       @db.Decimal(7, 2)
   includeInReport  Boolean        @default(true)
   createdAt        DateTime       @default(now())
   updatedAt        DateTime       @updatedAt
