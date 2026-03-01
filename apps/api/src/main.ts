@@ -33,7 +33,7 @@ async function bootstrap() {
 
   // CORS
   app.enableCors({
-    origin: ['http://localhost:8013'],
+    origin: ['http://localhost:8013', 'https://opti.alboregroup.com'],
     credentials: true,
   })
 

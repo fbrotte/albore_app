@@ -39,7 +39,7 @@ export class EmbeddingService implements OnModuleInit {
     } catch (error: unknown) {
       this.logger.error(
         'Failed to generate embedding:',
-        error instanceof Error ? error.message : error,
+        error instanceof Error ? error.message : String(error),
       )
       return null
     }

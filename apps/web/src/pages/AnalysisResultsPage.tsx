@@ -1143,9 +1143,14 @@ export default function AnalysisResultsPage() {
                                           <Input
                                             type="number"
                                             step="0.01"
+                                            min="0"
                                             value={editValue}
                                             onChange={(e) => setEditValue(e.target.value)}
-                                            className="w-24 text-right"
+                                            onKeyDown={(e) => {
+                                              if (e.key === 'Enter') handleSaveItem(summary.id)
+                                              if (e.key === 'Escape') setEditingItem(null)
+                                            }}
+                                            className="w-28 text-right"
                                             autoFocus
                                           />
                                           <Button

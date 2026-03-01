@@ -1,4 +1,5 @@
 import { Injectable, Inject } from '@nestjs/common'
+import { ConfigService } from '@nestjs/config'
 import { AiService } from '../ai/ai.service'
 import { LangfuseService } from '../langfuse/langfuse.service'
 import { LoggerService } from '../logger/logger.service'
@@ -44,6 +45,7 @@ export class VisionService {
     @Inject(AiService) private aiService: AiService,
     @Inject(LangfuseService) private langfuseService: LangfuseService,
     @Inject(LoggerService) private logger: LoggerService,
+    @Inject(ConfigService) private configService: ConfigService,
   ) {}
 
   async extractInvoice(
@@ -76,32 +78,36 @@ export class VisionService {
     try {
       const startTime = Date.now()
 
-      const response = await this.aiService.chatCompletion({
-        model: modelName,
-        messages: [
-          new SystemMessage(EXTRACTION_SYSTEM_PROMPT),
-          new HumanMessage({
-            content: [
-              { type: 'text', text: EXTRACTION_USER_PROMPT },
-              {
-                type: 'image_url',
-                image_url: {
-                  url: `data:${mimeType};base64,${base64}`,
+      let content: string
+
+      if (isPdf) {
+        // PDFs: call LiteLLM directly with 'file' type (LangChain doesn't support it)
+        content = await this.callLiteLLMDirect(modelName, base64)
+      } else {
+        // Images: use LangChain as usual
+        const response = await this.aiService.chatCompletion({
+          model: modelName,
+          messages: [
+            new SystemMessage(EXTRACTION_SYSTEM_PROMPT),
+            new HumanMessage({
+              content: [
+                { type: 'text', text: EXTRACTION_USER_PROMPT },
+                {
+                  type: 'image_url',
+                  image_url: { url: `data:${mimeType};base64,${base64}` },
                 },
-              },
-            ],
-          }),
-        ],
-        temperature: 0,
-        tags: ['vision', 'extraction'],
-      })
+              ],
+            }),
+          ],
+          temperature: 0,
+          tags: ['vision', 'extraction'],
+        })
+        content =
+          typeof response.content === 'string' ? response.content : JSON.stringify(response.content)
+      }
 
       const endTime = Date.now()
       this.logger.log(`Vision extraction completed in ${endTime - startTime}ms`)
-
-      // Parse response
-      const content =
-        typeof response.content === 'string' ? response.content : JSON.stringify(response.content)
 
       // Clean up response - remove markdown code blocks if present
       let jsonStr = content.trim()
@@ -115,7 +121,9 @@ export class VisionService {
       }
       jsonStr = jsonStr.trim()
 
-      const result = JSON.parse(jsonStr) as VisionExtractionResult
+      this.logger.log(`Raw extraction response: ${jsonStr.substring(0, 500)}`)
+      const parsed = JSON.parse(jsonStr)
+      const result = (Array.isArray(parsed) ? parsed[0] : parsed) as VisionExtractionResult
 
       if (tracing) {
         this.langfuseService.endGeneration(tracing.generation, result)
@@ -137,5 +145,50 @@ export class VisionService {
 
       throw error
     }
+  }
+
+  /**
+   * Call LiteLLM directly for PDF files (LangChain ChatOpenAI doesn't support the 'file' type)
+   */
+  private async callLiteLLMDirect(model: string, base64Pdf: string): Promise<string> {
+    const baseUrl = this.configService.get('LITELLM_BASE_URL')
+    const apiKey = this.configService.get('LITELLM_MASTER_KEY')
+
+    const response = await fetch(`${baseUrl}/v1/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model,
+        temperature: 0,
+        messages: [
+          { role: 'system', content: EXTRACTION_SYSTEM_PROMPT },
+          {
+            role: 'user',
+            content: [
+              {
+                type: 'document',
+                source: {
+                  type: 'base64',
+                  media_type: 'application/pdf',
+                  data: base64Pdf,
+                },
+              },
+              { type: 'text', text: EXTRACTION_USER_PROMPT },
+            ],
+          },
+        ],
+      }),
+    })
+
+    if (!response.ok) {
+      const error = await response.text()
+      throw new Error(`LiteLLM API error (${response.status}): ${error}`)
+    }
+
+    const data = (await response.json()) as any
+    return data.choices[0].message.content
   }
 }
