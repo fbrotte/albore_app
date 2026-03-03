@@ -41,6 +41,12 @@ const catalogData = {
       icon: 'monitor',
       displayOrder: 6,
     },
+    {
+      name: 'Impression',
+      description: "Solutions d'impression et de reprographie",
+      icon: 'printer',
+      displayOrder: 7,
+    },
   ],
   services: [
     // Téléphonie Mobile
@@ -290,6 +296,40 @@ const catalogData = {
       pricingType: 'FIXED' as const,
       basePrice: 250.0,
       billingType: 'ONE_TIME' as const,
+    },
+    // Impression
+    {
+      category: 'Impression',
+      name: 'Location Copieur Multifonction',
+      semanticDescription:
+        'Location de copieur multifonction professionnel. Imprimante scanner photocopieuse A3/A4 avec maintenance incluse.',
+      unitType: 'UNIT' as const,
+      unitLabel: 'copieur',
+      pricingType: 'FIXED' as const,
+      basePrice: 150.0,
+      billingType: 'RECURRING' as const,
+    },
+    {
+      category: 'Impression',
+      name: 'Coût à la Page',
+      semanticDescription:
+        'Facturation à la page pour impression et copie. Coût par page noir et blanc ou couleur, consommables inclus.',
+      unitType: 'UNIT' as const,
+      unitLabel: 'page',
+      pricingType: 'PER_UNIT' as const,
+      basePrice: 0.02,
+      billingType: 'USAGE' as const,
+    },
+    {
+      category: 'Impression',
+      name: 'Imprimante Réseau',
+      semanticDescription:
+        'Imprimante laser réseau professionnelle. Impression rapide recto-verso avec connexion Ethernet et WiFi.',
+      unitType: 'UNIT' as const,
+      unitLabel: 'imprimante',
+      pricingType: 'FIXED' as const,
+      basePrice: 80.0,
+      billingType: 'RECURRING' as const,
     },
   ],
 }

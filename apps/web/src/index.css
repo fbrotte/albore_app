@@ -70,3 +70,65 @@
     @apply transition-smooth hover:-translate-y-1 hover:shadow-lg;
   }
 }
+
+/* Proposal Document Print Styles */
+@media print {
+  /* Hide non-document elements */
+  header,
+  nav,
+  .print\:hidden {
+    display: none !important;
+  }
+
+  /* Reset body background */
+  body {
+    background: white !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* Page setup */
+  @page {
+    size: A4;
+    margin: 0;
+  }
+
+  /* Proposal document specific */
+  .proposal-document {
+    background: white !important;
+    padding: 0 !important;
+  }
+
+  .proposal-page {
+    box-shadow: none !important;
+    margin: 0 !important;
+    border-radius: 0 !important;
+    page-break-after: always;
+    break-after: page;
+  }
+
+  .proposal-page:last-child {
+    page-break-after: auto;
+    break-after: auto;
+  }
+
+  /* Ensure colors print correctly */
+  .bg-\[#1b2a4a\] {
+    background-color: #1b2a4a !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .bg-\[#f4f6f9\] {
+    background-color: #f4f6f9 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* Prevent content from breaking across pages */
+  .rounded-xl,
+  table,
+  .grid {
+    break-inside: avoid;
+  }
+}

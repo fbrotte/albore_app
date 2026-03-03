@@ -10,6 +10,8 @@ import AnalysisPage from './pages/AnalysisPage'
 import UploadInvoicePage from './pages/UploadInvoicePage'
 import AnalysisResultsPage from './pages/AnalysisResultsPage'
 import ProposalPage from './pages/ProposalPage'
+import ProposalDocumentPage from './pages/ProposalDocumentPage'
+import ProposalDocumentDemoPage from './pages/ProposalDocumentDemoPage'
 import ServicesPage from './pages/ServicesPage'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -129,6 +131,24 @@ function App() {
         element={
           <ProtectedRoute>
             <ProposalPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/analyses/:id/document"
+        element={
+          <ProtectedRoute>
+            <ProposalDocumentPage />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Demo page for proposal document */}
+      <Route
+        path="/demo/proposal"
+        element={
+          <ProtectedRoute>
+            <ProposalDocumentDemoPage />
           </ProtectedRoute>
         }
       />

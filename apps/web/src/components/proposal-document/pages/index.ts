@@ -1,0 +1,8 @@
+export { CoverPage } from './CoverPage'
+export { PresentationPage } from './PresentationPage'
+export { ConfidentialityPage } from './ConfidentialityPage'
+export { ExpenseOverviewPage } from './ExpenseOverviewPage'
+export { CategoryDetailPage } from './CategoryDetailPage'
+export { SynthesisPage } from './SynthesisPage'
+export { ActionPlanPage } from './ActionPlanPage'
+export { SignaturePage } from './SignaturePage'

@@ -10,6 +10,7 @@ import {
   Sparkles,
   Home,
   CheckCircle,
+  ExternalLink,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -325,6 +326,10 @@ export default function ProposalPage() {
             <Button variant="outline" onClick={() => navigate(`/analyses/${analysisId}/results`)}>
               <ArrowLeft className="mr-2 h-5 w-5" />
               Modifier les resultats
+            </Button>
+            <Button variant="outline" onClick={() => navigate(`/analyses/${analysisId}/document`)}>
+              <ExternalLink className="mr-2 h-5 w-5" />
+              Document complet
             </Button>
             <Button onClick={handleDownload}>
               <Download className="mr-2 h-5 w-5" />
