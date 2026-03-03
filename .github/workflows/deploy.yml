@@ -48,6 +48,13 @@ jobs:
           cd apps/api && bun run build
           echo "✅ API built"
 
+      - name: Build Web
+        run: |
+          export BUN_INSTALL="$HOME/.bun"
+          export PATH="$BUN_INSTALL/bin:$PATH"
+          cd apps/web && bun run build
+          echo "✅ Web built"
+
       - name: Run database migrations
         run: |
           export BUN_INSTALL="$HOME/.bun"
