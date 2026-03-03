@@ -1,4 +1,9 @@
-.PHONY: help setup init-env dev dev-api dev-web docker-up docker-up-llm docker-down docker-reset db-migrate db-seed db-seed-catalog db-regenerate-embeddings db-studio db-reset logs clean env-check generate-secret test test-api test-web test-cov lint format
+.PHONY: help setup init-env dev dev-api dev-web docker-up docker-up-llm docker-down docker-reset db-migrate db-seed db-seed-catalog db-regenerate-embeddings db-studio db-reset logs clean env-check generate-secret test test-api test-web test-cov lint format deploy deploy-quick deploy-migrate prod-logs prod-status
+
+# Production server config
+PROD_HOST := albore-prod
+PROD_PATH := ~/albore_app
+PROD_BUN := export BUN_INSTALL=\$$HOME/.bun && export PATH=\$$BUN_INSTALL/bin:\$$PATH
 
 help: ## Show this help message
 	@echo "Available commands:"
@@ -143,3 +148,63 @@ lint: ## Run ESLint check
 format: ## Format code (Prettier + ESLint fix)
 	@echo "Formatting code..."
 	@bun run format && bun run lint:fix
+
+# === DEPLOYMENT ===
+
+deploy: ## Deploy to production (build + sync + install + restart)
+	@echo "🚀 Deploying to production..."
+	@echo "📦 Building API..."
+	@cd apps/api && bun run build
+	@echo "📤 Syncing files to $(PROD_HOST)..."
+	@rsync -avz --delete \
+		--exclude 'node_modules' \
+		--exclude '.env' \
+		--exclude '.git' \
+		--exclude 'uploads' \
+		--exclude 'data' \
+		--exclude 'dist' \
+		--exclude '.DS_Store' \
+		./ $(PROD_HOST):$(PROD_PATH)/
+	@echo "📤 Syncing compiled dist..."
+	@rsync -avz --delete apps/api/dist/ $(PROD_HOST):$(PROD_PATH)/apps/api/dist/
+	@echo "📥 Installing dependencies on server..."
+	@ssh $(PROD_HOST) "$(PROD_BUN) && cd $(PROD_PATH) && bun install"
+	@echo "🔄 Restarting PM2..."
+	@ssh $(PROD_HOST) "pm2 restart albore-api"
+	@echo "✅ Deployment complete!"
+	@ssh $(PROD_HOST) "pm2 status"
+
+deploy-quick: ## Quick deploy (no bun install - use when deps unchanged)
+	@echo "🚀 Quick deploy to production..."
+	@echo "📦 Building API..."
+	@cd apps/api && bun run build
+	@echo "📤 Syncing files to $(PROD_HOST)..."
+	@rsync -avz --delete \
+		--exclude 'node_modules' \
+		--exclude '.env' \
+		--exclude '.git' \
+		--exclude 'uploads' \
+		--exclude 'data' \
+		--exclude 'dist' \
+		--exclude '.DS_Store' \
+		./ $(PROD_HOST):$(PROD_PATH)/
+	@echo "📤 Syncing compiled dist..."
+	@rsync -avz --delete apps/api/dist/ $(PROD_HOST):$(PROD_PATH)/apps/api/dist/
+	@echo "🔄 Restarting PM2..."
+	@ssh $(PROD_HOST) "pm2 restart albore-api"
+	@echo "✅ Deployment complete!"
+	@ssh $(PROD_HOST) "pm2 status"
+
+deploy-migrate: ## Deploy with Prisma migration
+	@$(MAKE) deploy
+	@echo "🗄️ Running Prisma migrations..."
+	@ssh $(PROD_HOST) "$(PROD_BUN) && cd $(PROD_PATH) && bunx prisma migrate deploy"
+	@echo "🔄 Restarting PM2 after migration..."
+	@ssh $(PROD_HOST) "pm2 restart albore-api"
+	@echo "✅ Migration complete!"
+
+prod-logs: ## Show production logs (tail -f)
+	@ssh $(PROD_HOST) "pm2 logs albore-api --lines 50"
+
+prod-status: ## Show production status
+	@ssh $(PROD_HOST) "pm2 status && echo '' && pm2 logs albore-api --lines 10 --nostream"

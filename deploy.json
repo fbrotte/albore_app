@@ -1,0 +1,15 @@
+{
+  "ssh": {
+    "host": "83.228.211.232",
+    "user": "ubuntu",
+    "project_dir": "/home/ubuntu/albore_app"
+  },
+  "health_check": {
+    "url": "/api/health",
+    "port": 8012,
+    "timeout": 60
+  },
+  "pm2": {
+    "app_name": "albore-api"
+  }
+}

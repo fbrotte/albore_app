@@ -1,0 +1,93 @@
+# =============================================================================
+# GitHub Actions - Deploy to Production
+# Runs on self-hosted runner installed on the production server
+# Uses PM2 + Bun (no Docker build to save RAM)
+#
+# Prerequisites:
+#   1. Self-hosted runner installed on your server
+#   2. .env file on the server with production secrets
+#   3. PM2 already configured with albore-api app
+# =============================================================================
+
+name: Deploy Production
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  PROJECT_DIR: /home/ubuntu/albore_app
+
+defaults:
+  run:
+    working-directory: /home/ubuntu/albore_app
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+
+    steps:
+      - name: Pull latest code
+        run: |
+          git fetch origin main --tags
+          git reset --hard origin/main
+          echo "✅ Code updated"
+
+      - name: Install dependencies
+        run: |
+          export BUN_INSTALL="$HOME/.bun"
+          export PATH="$BUN_INSTALL/bin:$PATH"
+          bun install
+          echo "✅ Dependencies installed"
+
+      - name: Build API
+        run: |
+          export BUN_INSTALL="$HOME/.bun"
+          export PATH="$BUN_INSTALL/bin:$PATH"
+          cd apps/api && bun run build
+          echo "✅ API built"
+
+      - name: Run database migrations
+        run: |
+          export BUN_INSTALL="$HOME/.bun"
+          export PATH="$BUN_INSTALL/bin:$PATH"
+          bunx prisma migrate deploy
+          echo "✅ Migrations applied"
+
+      - name: Restart PM2
+        run: |
+          pm2 restart albore-api
+          sleep 5
+          pm2 status
+          echo "✅ PM2 restarted"
+
+      - name: Health check
+        run: |
+          for i in {1..12}; do
+            if curl -sf http://localhost:8012/api/health > /dev/null 2>&1; then
+              echo "✅ Health check passed!"
+              exit 0
+            fi
+            echo "Attempt $i/12 - waiting 5s..."
+            sleep 5
+          done
+          echo "❌ Health check failed"
+          pm2 logs albore-api --lines 30 --nostream
+          exit 1
+
+      - name: Create version tag
+        run: |
+          LATEST_TAG=$(git tag -l 'v*' --sort=-version:refname | head -1)
+          LATEST_TAG=${LATEST_TAG:-v0.0.0}
+
+          VERSION=${LATEST_TAG#v}
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION"
+          NEW_TAG="v${MAJOR}.${MINOR}.$((PATCH + 1))"
+
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git tag -a "$NEW_TAG" -m "Auto-release after deploy to production"
+          git push origin "$NEW_TAG" || echo "Warning: Could not push tag"
+
+          echo "✅ Tagged: $NEW_TAG"
