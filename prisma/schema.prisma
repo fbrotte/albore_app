@@ -72,15 +72,22 @@ enum BillingType {
   USAGE
 }
 
+enum ProposalGroup {
+  TELECOM
+  IT
+  PRINTING
+}
+
 model Category {
-  id           String    @id @default(cuid())
-  name         String
-  description  String?
-  icon         String?
-  displayOrder Int       @default(0)
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
-  deletedAt    DateTime?
+  id            String         @id @default(cuid())
+  name          String
+  description   String?
+  icon          String?
+  proposalGroup ProposalGroup  @default(IT)
+  displayOrder  Int            @default(0)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  deletedAt     DateTime?
 
   services Service[]
 
@@ -165,8 +172,9 @@ model Analysis {
   updatedAt DateTime       @updatedAt
   deletedAt DateTime?
 
-  invoices  Invoice[]
-  summaries AnalysisSummary[]
+  invoices               Invoice[]
+  summaries              AnalysisSummary[]
+  proposalCustomizations ProposalCustomization[]
 
   @@index([clientId])
   @@map("analyses")
@@ -274,4 +282,21 @@ model AnalysisSummary {
   @@index([analysisId])
   @@index([matchedServiceId])
   @@map("analysis_summaries")
+}
+
+// === PROPOSAL CUSTOMIZATIONS ===
+
+model ProposalCustomization {
+  id         String   @id @default(cuid())
+  analysisId String
+  sectionKey String   // ex: "cover.title", "presentation.intro", "category.telecom.analysis"
+  customText String   @db.Text
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  analysis Analysis @relation(fields: [analysisId], references: [id], onDelete: Cascade)
+
+  @@unique([analysisId, sectionKey])
+  @@index([analysisId])
+  @@map("proposal_customizations")
 }
