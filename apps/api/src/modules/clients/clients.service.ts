@@ -70,10 +70,21 @@ export class ClientsService {
       throw new NotFoundException(`Client ${id} not found`)
     }
 
-    // Soft delete
-    return this.prisma.client.update({
-      where: { id },
-      data: { deletedAt: new Date() },
+    const now = new Date()
+
+    // Soft delete client and all its analyses in a transaction
+    return this.prisma.$transaction(async (tx) => {
+      // Soft delete all analyses for this client
+      await tx.analysis.updateMany({
+        where: { clientId: id, deletedAt: null },
+        data: { deletedAt: now },
+      })
+
+      // Soft delete the client
+      return tx.client.update({
+        where: { id },
+        data: { deletedAt: now },
+      })
     })
   }
 }
