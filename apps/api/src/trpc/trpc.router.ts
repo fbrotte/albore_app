@@ -11,6 +11,7 @@ import { AnalysesTrpc } from '../modules/analyses/analyses.trpc'
 import { InvoicesTrpc } from '../modules/invoices/invoices.trpc'
 import { InvoiceLinesTrpc } from '../modules/invoice-lines/invoice-lines.trpc'
 import { SummariesTrpc } from '../modules/summaries/summaries.trpc'
+import { ProposalCustomizationsTrpc } from '../modules/proposal-customizations/proposal-customizations.trpc'
 import { createContext } from './trpc.context'
 
 @Injectable()
@@ -28,6 +29,8 @@ export class TrpcRouter implements OnApplicationBootstrap {
     @Inject(InvoicesTrpc) private readonly invoicesTrpc: InvoicesTrpc,
     @Inject(InvoiceLinesTrpc) private readonly invoiceLinesTrpc: InvoiceLinesTrpc,
     @Inject(SummariesTrpc) private readonly summariesTrpc: SummariesTrpc,
+    @Inject(ProposalCustomizationsTrpc)
+    private readonly proposalCustomizationsTrpc: ProposalCustomizationsTrpc,
   ) {
     // Assemble modular routers
     this.appRouter = this.trpc.router({
@@ -40,6 +43,7 @@ export class TrpcRouter implements OnApplicationBootstrap {
       invoices: this.invoicesTrpc.router,
       invoiceLines: this.invoiceLinesTrpc.router,
       summaries: this.summariesTrpc.router,
+      proposalCustomizations: this.proposalCustomizationsTrpc.router,
     })
   }
 

@@ -23,6 +23,7 @@ import { AnalysesModule } from './modules/analyses/analyses.module'
 import { InvoicesModule } from './modules/invoices/invoices.module'
 import { InvoiceLinesModule } from './modules/invoice-lines/invoice-lines.module'
 import { SummariesModule } from './modules/summaries/summaries.module'
+import { ProposalCustomizationsModule } from './modules/proposal-customizations/proposal-customizations.module'
 
 @Module({
   imports: [
@@ -60,6 +61,7 @@ import { SummariesModule } from './modules/summaries/summaries.module'
     InvoicesModule,
     InvoiceLinesModule,
     SummariesModule,
+    ProposalCustomizationsModule,
   ],
   controllers: [AppController],
   providers: [
