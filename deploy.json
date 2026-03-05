@@ -1,7 +1,6 @@
 {
   "ssh": {
-    "host": "83.228.211.232",
-    "user": "ubuntu",
+    "host": "albore-prod",
     "project_dir": "/home/ubuntu/albore_app"
   },
   "health_check": {
