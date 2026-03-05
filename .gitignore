@@ -57,9 +57,7 @@ ENV/
 postgres-data/
 redis-data/
 
-# Prisma
-prisma/migrations/**
-!prisma/migrations/.gitkeep
+# Prisma - migrations are tracked in git for consistency across environments
 
 # Temp files
 *.tmp
