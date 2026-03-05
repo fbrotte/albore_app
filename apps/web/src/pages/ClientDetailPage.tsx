@@ -1,37 +1,127 @@
 import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Building2, Mail, FileText, Plus, Calendar, ArrowRight } from 'lucide-react'
+import {
+  ArrowLeft,
+  Building2,
+  Mail,
+  FileText,
+  Plus,
+  Calendar,
+  ArrowRight,
+  Pencil,
+  Trash2,
+} from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { trpc } from '@/lib/trpc'
 
 export default function ClientDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const utils = trpc.useUtils()
   const [isCreatingAnalysis, setIsCreatingAnalysis] = useState(false)
   const [newAnalysisName, setNewAnalysisName] = useState('')
+
+  // Edit client state
+  const [isEditingClient, setIsEditingClient] = useState(false)
+  const [editName, setEditName] = useState('')
+  const [editCompany, setEditCompany] = useState('')
+  const [editEmail, setEditEmail] = useState('')
+
+  // Delete client state
+  const [isDeletingClient, setIsDeletingClient] = useState(false)
+
+  // Delete analysis state
+  const [deletingAnalysisId, setDeletingAnalysisId] = useState<string | null>(null)
 
   const { data: client, isLoading: isLoadingClient } = trpc.clients.getById.useQuery(
     { id: id! },
     { enabled: !!id },
   )
 
-  const {
-    data: analyses,
-    isLoading: isLoadingAnalyses,
-    refetch: refetchAnalyses,
-  } = trpc.analyses.list.useQuery({ clientId: id! }, { enabled: !!id })
+  const { data: analyses, isLoading: isLoadingAnalyses } = trpc.analyses.list.useQuery(
+    { clientId: id! },
+    { enabled: !!id },
+  )
 
   const createAnalysisMutation = trpc.analyses.create.useMutation({
     onSuccess: (analysis) => {
       setIsCreatingAnalysis(false)
       setNewAnalysisName('')
-      refetchAnalyses()
+      // Invalidate cache so lists are refreshed everywhere
+      utils.analyses.list.invalidate()
+      utils.analyses.getDashboardStats.invalidate()
       navigate(`/analyses/${analysis.id}/upload`)
     },
   })
+
+  const updateClientMutation = trpc.clients.update.useMutation({
+    onSuccess: () => {
+      setIsEditingClient(false)
+      // Invalidate cache
+      utils.clients.getById.invalidate({ id: id! })
+      utils.clients.list.invalidate()
+      utils.analyses.getDashboardStats.invalidate()
+    },
+  })
+
+  const deleteClientMutation = trpc.clients.delete.useMutation({
+    onSuccess: () => {
+      // Invalidate cache
+      utils.clients.list.invalidate()
+      utils.analyses.getDashboardStats.invalidate()
+      navigate('/clients')
+    },
+  })
+
+  const deleteAnalysisMutation = trpc.analyses.delete.useMutation({
+    onSuccess: () => {
+      setDeletingAnalysisId(null)
+      // Invalidate cache
+      utils.analyses.list.invalidate()
+      utils.analyses.getDashboardStats.invalidate()
+    },
+  })
+
+  const handleOpenEditClient = () => {
+    if (!client) return
+    setEditName(client.name)
+    setEditCompany(client.company || '')
+    setEditEmail(client.contactEmail || '')
+    setIsEditingClient(true)
+  }
+
+  const handleUpdateClient = () => {
+    if (!id || !editName.trim()) return
+    updateClientMutation.mutate({
+      id,
+      data: {
+        name: editName.trim(),
+        company: editCompany.trim() || undefined,
+        contactEmail: editEmail.trim() || undefined,
+      },
+    })
+  }
+
+  const handleDeleteClient = () => {
+    if (!id) return
+    deleteClientMutation.mutate({ id })
+  }
+
+  const handleDeleteAnalysis = () => {
+    if (!deletingAnalysisId) return
+    deleteAnalysisMutation.mutate({ id: deletingAnalysisId })
+  }
 
   const handleCreateAnalysis = () => {
     if (!newAnalysisName.trim() || !id) return
@@ -113,10 +203,23 @@ export default function ClientDetailPage() {
                   </div>
                 </div>
               </div>
-              <Button onClick={() => setIsCreatingAnalysis(true)}>
-                <Plus className="mr-2 h-4 w-4" />
-                Nouvelle analyse
-              </Button>
+              <div className="flex space-x-2">
+                <Button variant="outline" size="icon" onClick={handleOpenEditClient}>
+                  <Pencil className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="text-destructive hover:bg-destructive hover:text-destructive-foreground"
+                  onClick={() => setIsDeletingClient(true)}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+                <Button onClick={() => setIsCreatingAnalysis(true)}>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Nouvelle analyse
+                </Button>
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -178,14 +281,13 @@ export default function ClientDetailPage() {
           ) : analyses && analyses.length > 0 ? (
             <div className="space-y-4">
               {analyses.map((analysis) => (
-                <Card
-                  key={analysis.id}
-                  className="card-hover cursor-pointer"
-                  onClick={() => navigate(`/analyses/${analysis.id}`)}
-                >
+                <Card key={analysis.id} className="card-hover">
                   <CardContent className="p-6">
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-4">
+                      <div
+                        className="flex flex-1 cursor-pointer items-center space-x-4"
+                        onClick={() => navigate(`/analyses/${analysis.id}`)}
+                      >
                         <div className="rounded-lg bg-primary/10 p-3">
                           <FileText className="h-6 w-6 text-primary" />
                         </div>
@@ -211,7 +313,23 @@ export default function ClientDetailPage() {
                           </div>
                         </div>
                       </div>
-                      <ArrowRight className="h-5 w-5 text-muted-foreground" />
+                      <div className="flex items-center space-x-2">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="text-destructive hover:bg-destructive/10"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setDeletingAnalysisId(analysis.id)
+                          }}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                        <ArrowRight
+                          className="h-5 w-5 cursor-pointer text-muted-foreground"
+                          onClick={() => navigate(`/analyses/${analysis.id}`)}
+                        />
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
@@ -234,6 +352,104 @@ export default function ClientDetailPage() {
           )}
         </div>
       </div>
+
+      {/* Edit Client Dialog */}
+      <Dialog open={isEditingClient} onOpenChange={setIsEditingClient}>
+        <DialogContent onClose={() => setIsEditingClient(false)}>
+          <DialogHeader>
+            <DialogTitle>Modifier le client</DialogTitle>
+            <DialogDescription>Modifiez les informations du client</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div>
+              <label className="mb-1 block text-sm font-medium">Nom du client *</label>
+              <Input
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                placeholder="Nom du client"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium">Entreprise</label>
+              <Input
+                value={editCompany}
+                onChange={(e) => setEditCompany(e.target.value)}
+                placeholder="Nom de l'entreprise"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium">Email de contact</label>
+              <Input
+                type="email"
+                value={editEmail}
+                onChange={(e) => setEditEmail(e.target.value)}
+                placeholder="email@example.com"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditingClient(false)}>
+              Annuler
+            </Button>
+            <Button
+              onClick={handleUpdateClient}
+              disabled={!editName.trim() || updateClientMutation.isPending}
+            >
+              {updateClientMutation.isPending ? 'Enregistrement...' : 'Enregistrer'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Client Dialog */}
+      <Dialog open={isDeletingClient} onOpenChange={setIsDeletingClient}>
+        <DialogContent onClose={() => setIsDeletingClient(false)}>
+          <DialogHeader>
+            <DialogTitle>Supprimer le client</DialogTitle>
+            <DialogDescription>
+              Etes-vous sur de vouloir supprimer le client "{client?.name}" ? Cette action
+              supprimera egalement toutes les analyses associees. Cette action est irreversible.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsDeletingClient(false)}>
+              Annuler
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteClient}
+              disabled={deleteClientMutation.isPending}
+            >
+              {deleteClientMutation.isPending ? 'Suppression...' : 'Supprimer'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Analysis Dialog */}
+      <Dialog open={!!deletingAnalysisId} onOpenChange={() => setDeletingAnalysisId(null)}>
+        <DialogContent onClose={() => setDeletingAnalysisId(null)}>
+          <DialogHeader>
+            <DialogTitle>Supprimer l'analyse</DialogTitle>
+            <DialogDescription>
+              Etes-vous sur de vouloir supprimer cette analyse ? Toutes les factures et donnees
+              associees seront egalement supprimees. Cette action est irreversible.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeletingAnalysisId(null)}>
+              Annuler
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteAnalysis}
+              disabled={deleteAnalysisMutation.isPending}
+            >
+              {deleteAnalysisMutation.isPending ? 'Suppression...' : 'Supprimer'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </AppLayout>
   )
 }

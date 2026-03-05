@@ -9,6 +9,7 @@ import { trpc } from '@/lib/trpc'
 
 export default function CreateAnalysisPage() {
   const navigate = useNavigate()
+  const utils = trpc.useUtils()
   const [step, setStep] = useState<'client' | 'analysis'>('client')
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null)
   const [analysisName, setAnalysisName] = useState('')
@@ -16,11 +17,7 @@ export default function CreateAnalysisPage() {
   const [newClientName, setNewClientName] = useState('')
   const [newClientCompany, setNewClientCompany] = useState('')
 
-  const {
-    data: clients,
-    isLoading: isLoadingClients,
-    refetch: refetchClients,
-  } = trpc.clients.list.useQuery()
+  const { data: clients, isLoading: isLoadingClients } = trpc.clients.list.useQuery()
 
   const createClientMutation = trpc.clients.create.useMutation({
     onSuccess: (client) => {
@@ -28,13 +25,18 @@ export default function CreateAnalysisPage() {
       setIsCreatingClient(false)
       setNewClientName('')
       setNewClientCompany('')
-      refetchClients()
+      // Invalidate cache so other pages see the new client
+      utils.clients.list.invalidate()
+      utils.analyses.getDashboardStats.invalidate()
       setStep('analysis')
     },
   })
 
   const createAnalysisMutation = trpc.analyses.create.useMutation({
     onSuccess: (analysis) => {
+      // Invalidate cache so dashboard shows the new analysis
+      utils.analyses.getDashboardStats.invalidate()
+      utils.analyses.list.invalidate()
       navigate(`/analyses/${analysis.id}/upload`)
     },
   })

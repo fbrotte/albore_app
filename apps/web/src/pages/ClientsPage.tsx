@@ -9,19 +9,22 @@ import { trpc } from '@/lib/trpc'
 
 export default function ClientsPage() {
   const navigate = useNavigate()
+  const utils = trpc.useUtils()
   const [search, setSearch] = useState('')
   const [isCreating, setIsCreating] = useState(false)
   const [newClientName, setNewClientName] = useState('')
   const [newClientCompany, setNewClientCompany] = useState('')
 
-  const { data: clients, isLoading, refetch } = trpc.clients.list.useQuery()
+  const { data: clients, isLoading } = trpc.clients.list.useQuery()
 
   const createClientMutation = trpc.clients.create.useMutation({
     onSuccess: () => {
       setIsCreating(false)
       setNewClientName('')
       setNewClientCompany('')
-      refetch()
+      // Invalidate cache so lists are refreshed everywhere
+      utils.clients.list.invalidate()
+      utils.analyses.getDashboardStats.invalidate()
     },
   })
 

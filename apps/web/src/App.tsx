@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate } from 'react-router-dom'
+import { Routes, Route, Navigate, useParams } from 'react-router-dom'
 import { useIsAuthenticated, useAuthLoading } from './stores/auth.store'
 import LoginPage from './pages/LoginPage'
 import RegisterPage from './pages/RegisterPage'
@@ -7,10 +7,6 @@ import ClientsPage from './pages/ClientsPage'
 import ClientDetailPage from './pages/ClientDetailPage'
 import CreateAnalysisPage from './pages/CreateAnalysisPage'
 import AnalysisPage from './pages/AnalysisPage'
-import UploadInvoicePage from './pages/UploadInvoicePage'
-import AnalysisResultsPage from './pages/AnalysisResultsPage'
-import ProposalPage from './pages/ProposalPage'
-import ProposalDocumentPage from './pages/ProposalDocumentPage'
 import ProposalDocumentDemoPage from './pages/ProposalDocumentDemoPage'
 import ServicesPage from './pages/ServicesPage'
 
@@ -42,6 +38,17 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
   }
 
   return isAuthenticated ? <Navigate to="/dashboard" /> : <>{children}</>
+}
+
+// Redirect component for backwards compatibility
+function UploadRedirect() {
+  const { id } = useParams<{ id: string }>()
+  return <Navigate to={`/analyses/${id}?tab=data`} replace />
+}
+
+function ResultsRedirect() {
+  const { id } = useParams<{ id: string }>()
+  return <Navigate to={`/analyses/${id}?tab=assignation`} replace />
 }
 
 function App() {
@@ -93,7 +100,7 @@ function App() {
         }
       />
 
-      {/* Analyses */}
+      {/* Analyses - unified page with tabs */}
       <Route
         path="/analyses/new"
         element={
@@ -110,11 +117,13 @@ function App() {
           </ProtectedRoute>
         }
       />
+
+      {/* Backwards-compatible redirects */}
       <Route
         path="/analyses/:id/upload"
         element={
           <ProtectedRoute>
-            <UploadInvoicePage />
+            <UploadRedirect />
           </ProtectedRoute>
         }
       />
@@ -122,23 +131,7 @@ function App() {
         path="/analyses/:id/results"
         element={
           <ProtectedRoute>
-            <AnalysisResultsPage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/analyses/:id/proposal"
-        element={
-          <ProtectedRoute>
-            <ProposalPage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/analyses/:id/document"
-        element={
-          <ProtectedRoute>
-            <ProposalDocumentPage />
+            <ResultsRedirect />
           </ProtectedRoute>
         }
       />
