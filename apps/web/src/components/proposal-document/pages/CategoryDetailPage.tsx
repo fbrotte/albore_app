@@ -1,4 +1,4 @@
-import { PageWrapper, PageHeader, CostBanner, DetailTable } from '../shared'
+import { PageWrapper, PageHeader, CostBanner, DetailTable, EditableText } from '../shared'
 import { GROUP_CONFIG } from '../constants'
 import type { CategoryDetailPageProps } from '../types'
 
@@ -7,6 +7,9 @@ export function CategoryDetailPage({
   analysis,
   recommendation,
   className,
+  onUpdateSection,
+  onResetSection,
+  getCustomText,
 }: CategoryDetailPageProps) {
   const config = GROUP_CONFIG[group.slug]
 
@@ -18,6 +21,32 @@ export function CategoryDetailPage({
   const defaultRecommendation = `Nous recommandons la mise en place de notre solution optimisee qui vous permettra de beneficier d'une reduction de ${group.savingsPercent.toFixed(
     1,
   )}% sur ce poste de depense. Cette optimisation inclut un accompagnement complet pour la transition et un suivi continu de votre facturation.`
+
+  // Section keys for customizations
+  const analysisSectionKey = `${group.slug}-analysis`
+  const recommendationSectionKey = `${group.slug}-recommendation`
+
+  // Get customized text or fall back to defaults
+  const analysisText = analysis || getCustomText?.(analysisSectionKey) || defaultAnalysis
+  const recommendationText =
+    recommendation || getCustomText?.(recommendationSectionKey) || defaultRecommendation
+
+  // Handlers for editable text
+  const handleSaveAnalysis = (sectionKey: string, text: string) => {
+    onUpdateSection?.(sectionKey, text)
+  }
+
+  const handleResetAnalysis = (sectionKey: string) => {
+    onResetSection?.(sectionKey, defaultAnalysis)
+  }
+
+  const handleSaveRecommendation = (sectionKey: string, text: string) => {
+    onUpdateSection?.(sectionKey, text)
+  }
+
+  const handleResetRecommendation = (sectionKey: string) => {
+    onResetSection?.(sectionKey, defaultRecommendation)
+  }
 
   return (
     <PageWrapper className={className}>
@@ -59,9 +88,20 @@ export function CategoryDetailPage({
 
         <div className="rounded-xl border-l-4 border-[#2b6cb0] bg-[#f4f6f9] p-7">
           <h4 className="mb-3 text-[0.95rem] font-bold text-[#1b2a4a]">Constat</h4>
-          <p className="text-[0.88rem] leading-relaxed text-[#2d3748]">
-            {analysis || defaultAnalysis}
-          </p>
+          {onUpdateSection ? (
+            <EditableText
+              sectionKey={analysisSectionKey}
+              defaultText={defaultAnalysis}
+              customText={getCustomText?.(analysisSectionKey)}
+              onSave={handleSaveAnalysis}
+              onReset={handleResetAnalysis}
+              className="text-[0.88rem] leading-relaxed text-[#2d3748]"
+              as="p"
+              multiline
+            />
+          ) : (
+            <p className="text-[0.88rem] leading-relaxed text-[#2d3748]">{analysisText}</p>
+          )}
         </div>
 
         {/* Recommendation box */}
@@ -71,12 +111,21 @@ export function CategoryDetailPage({
             background: 'linear-gradient(135deg, rgba(43,108,176,0.06), rgba(43,108,176,0.02))',
           }}
         >
-          <h4 className="mb-2.5 text-[0.95rem] font-bold text-[#1e5494]">
-            💡 Recommandation Albore
-          </h4>
-          <p className="text-[0.88rem] leading-relaxed text-[#2d3748]">
-            {recommendation || defaultRecommendation}
-          </p>
+          <h4 className="mb-2.5 text-[0.95rem] font-bold text-[#1e5494]">Recommandation Albore</h4>
+          {onUpdateSection ? (
+            <EditableText
+              sectionKey={recommendationSectionKey}
+              defaultText={defaultRecommendation}
+              customText={getCustomText?.(recommendationSectionKey)}
+              onSave={handleSaveRecommendation}
+              onReset={handleResetRecommendation}
+              className="text-[0.88rem] leading-relaxed text-[#2d3748]"
+              as="p"
+              multiline
+            />
+          ) : (
+            <p className="text-[0.88rem] leading-relaxed text-[#2d3748]">{recommendationText}</p>
+          )}
         </div>
       </div>
     </PageWrapper>

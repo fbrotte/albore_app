@@ -1,7 +1,18 @@
 import { useMemo } from 'react'
 import { trpc } from '@/lib/trpc'
-import { CATEGORY_GROUP_MAP, GROUP_CONFIG } from './constants'
+import { GROUP_CONFIG } from './constants'
 import type { ProposalData, CategoryGroup, ServiceSummary, ProposalTotals } from './types'
+
+// Fallback mapping for categories without proposalGroup set
+const CATEGORY_GROUP_FALLBACK: Record<string, CategoryGroup['slug']> = {
+  'Téléphonie Mobile': 'telecom',
+  'Téléphonie Fixe': 'telecom',
+  'Internet & Réseau': 'telecom',
+  'Cloud & Hébergement': 'it',
+  'Logiciels & Licences': 'it',
+  Matériel: 'it',
+  Impression: 'printing',
+}
 
 export function useProposalData(analysisId: string | undefined) {
   const { data: analysis, isLoading: isLoadingAnalysis } = trpc.analyses.getById.useQuery(
@@ -17,20 +28,22 @@ export function useProposalData(analysisId: string | undefined) {
   const proposalData = useMemo<ProposalData | null>(() => {
     if (!analysis || !summaries) return null
 
-    // Transform summaries into ServiceSummary format
+    // Transform summaries into ServiceSummary format and group by proposal group
+    const groupedServices = new Map<CategoryGroup['slug'], ServiceSummary[]>()
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const serviceSummaries: ServiceSummary[] = summaries.map((s: any) => {
+    for (const s of summaries as any[]) {
       const currentMonthly = Number(s.avgMonthly) || 0
       const proposedMonthly = s.ourPrice ? Number(s.ourPrice) : currentMonthly
       const savingAmount = Number(s.savingAmount) || 0
       const savingPercent = Number(s.savingPercent) || 0
 
-      return {
+      const serviceSummary: ServiceSummary = {
         id: s.id,
         serviceName: s.matchedService?.name ?? 'Service',
         categoryName: s.matchedService?.category?.name ?? 'Autre',
         categoryId: s.matchedService?.categoryId ?? '',
-        provider: undefined, // Could be extracted from invoice data
+        provider: undefined,
         description: s.matchedService?.semanticDescription,
         currentMonthly,
         currentAnnual: currentMonthly * 12,
@@ -43,17 +56,19 @@ export function useProposalData(analysisId: string | undefined) {
         unitPrice: s.avgUnitPrice ? Number(s.avgUnitPrice) : undefined,
         ourPrice: s.ourPrice ? Number(s.ourPrice) : undefined,
       }
-    })
 
-    // Group services by category group
-    const groupedServices = new Map<CategoryGroup['slug'], ServiceSummary[]>()
+      // Use proposalGroup from DB, fallback to name-based mapping, then default to 'it'
+      const dbGroup = s.matchedService?.category?.proposalGroup?.toLowerCase() as
+        | CategoryGroup['slug']
+        | undefined
+      const categoryName = s.matchedService?.category?.name ?? ''
+      const groupSlug: CategoryGroup['slug'] =
+        dbGroup ?? CATEGORY_GROUP_FALLBACK[categoryName] ?? 'it'
 
-    for (const service of serviceSummaries) {
-      const groupSlug = CATEGORY_GROUP_MAP[service.categoryName] ?? 'it'
       if (!groupedServices.has(groupSlug)) {
         groupedServices.set(groupSlug, [])
       }
-      groupedServices.get(groupSlug)!.push(service)
+      groupedServices.get(groupSlug)!.push(serviceSummary)
     }
 
     // Build category groups

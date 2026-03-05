@@ -1,5 +1,5 @@
 export { CoverPage } from './CoverPage'
-export { PresentationPage } from './PresentationPage'
+export { PresentationPage, SolutionsPage } from './PresentationPage'
 export { ConfidentialityPage } from './ConfidentialityPage'
 export { ExpenseOverviewPage } from './ExpenseOverviewPage'
 export { CategoryDetailPage } from './CategoryDetailPage'

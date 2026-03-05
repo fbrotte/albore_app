@@ -79,7 +79,15 @@ export interface PageProps {
   className?: string
 }
 
-export interface CategoryDetailPageProps extends PageProps {
+// Editable section props - used by pages that support customization
+export interface EditableProps {
+  customizations?: Record<string, string>
+  onUpdateSection?: (sectionKey: string, text: string) => void
+  onResetSection?: (sectionKey: string, defaultText: string) => void
+  getCustomText?: (sectionKey: string) => string | undefined
+}
+
+export interface CategoryDetailPageProps extends PageProps, EditableProps {
   group: CategoryGroup
   analysis?: string
   recommendation?: string
@@ -94,7 +102,7 @@ export interface SynthesisPageProps extends PageProps {
   totals: ProposalTotals
 }
 
-export interface CoverPageProps extends PageProps {
+export interface CoverPageProps extends PageProps, EditableProps {
   client: ProposalClient
   albore: ProposalAlbore
   date: Date
@@ -103,3 +111,5 @@ export interface CoverPageProps extends PageProps {
 export interface SignaturePageProps extends PageProps {
   client: ProposalClient
 }
+
+export interface PresentationPageProps extends PageProps, EditableProps {}

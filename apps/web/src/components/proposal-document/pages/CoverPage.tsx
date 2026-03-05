@@ -1,4 +1,4 @@
-import { PageWrapper } from '../shared'
+import { PageWrapper, EditableText } from '../shared'
 import type { CoverPageProps } from '../types'
 
 function formatDate(date: Date): string {
@@ -9,9 +9,28 @@ function formatDate(date: Date): string {
   })
 }
 
-export function CoverPage({ client, albore, date }: CoverPageProps) {
+const DEFAULT_METHODOLOGY = `Elle distingue clairement les inventaires techniques (equipements, forfaits, maintenance, consommations) des analyses et recommandations, permettant une evaluation objective des solutions actuelles et proposees avant leur mise en oeuvre.`
+
+export function CoverPage({
+  client,
+  albore,
+  date,
+  onUpdateSection,
+  onResetSection,
+  getCustomText,
+}: CoverPageProps) {
+  const methodologySectionKey = 'cover-methodology'
+
+  const handleSaveMethodology = (sectionKey: string, text: string) => {
+    onUpdateSection?.(sectionKey, text)
+  }
+
+  const handleResetMethodology = (sectionKey: string) => {
+    onResetSection?.(sectionKey, DEFAULT_METHODOLOGY)
+  }
+
   return (
-    <PageWrapper className="first:mt-10">
+    <PageWrapper>
       {/* Header with gradient */}
       <div className="relative overflow-hidden bg-[#1b2a4a] px-14 py-16">
         {/* Background decorations */}
@@ -90,11 +109,22 @@ export function CoverPage({ client, albore, date }: CoverPageProps) {
           </div>
           <div>
             <div className="mb-1.5 text-[0.95rem] font-bold">Notre methodologie</div>
-            <p className="text-[0.88rem] leading-relaxed opacity-85">
-              Elle distingue clairement les inventaires techniques (equipements, forfaits,
-              maintenance, consommations) des analyses et recommandations, permettant une evaluation
-              objective des solutions actuelles et proposees avant leur mise en oeuvre.
-            </p>
+            {onUpdateSection ? (
+              <EditableText
+                sectionKey={methodologySectionKey}
+                defaultText={DEFAULT_METHODOLOGY}
+                customText={getCustomText?.(methodologySectionKey)}
+                onSave={handleSaveMethodology}
+                onReset={handleResetMethodology}
+                className="text-[0.88rem] leading-relaxed opacity-85"
+                as="p"
+                multiline
+              />
+            ) : (
+              <p className="text-[0.88rem] leading-relaxed opacity-85">
+                {getCustomText?.(methodologySectionKey) || DEFAULT_METHODOLOGY}
+              </p>
+            )}
           </div>
         </div>
       </div>

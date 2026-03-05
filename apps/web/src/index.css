@@ -71,7 +71,171 @@
   }
 }
 
-/* Proposal Document Print Styles */
+/* Proposal Document A4 Styles - Applied on screen AND print */
+/* These ensure the preview matches the PDF output exactly */
+
+/* Reduce padding for A4 fit */
+.proposal-page .px-14 {
+  padding-left: 10mm;
+  padding-right: 10mm;
+}
+
+.proposal-page .py-10 {
+  padding-top: 8mm;
+  padding-bottom: 8mm;
+}
+
+.proposal-page .py-14 {
+  padding-top: 10mm;
+  padding-bottom: 10mm;
+}
+
+.proposal-page .py-8 {
+  padding-top: 6mm;
+  padding-bottom: 6mm;
+}
+
+.proposal-page .p-14 {
+  padding: 10mm;
+}
+
+/* Reduce margins and gaps */
+.proposal-page .mb-10 {
+  margin-bottom: 5mm;
+}
+
+.proposal-page .mb-8 {
+  margin-bottom: 4mm;
+}
+
+.proposal-page .mb-7 {
+  margin-bottom: 3.5mm;
+}
+
+.proposal-page .mb-6 {
+  margin-bottom: 3mm;
+}
+
+.proposal-page .mb-5 {
+  margin-bottom: 2.5mm;
+}
+
+.proposal-page .mb-4 {
+  margin-bottom: 2mm;
+}
+
+.proposal-page .gap-7 {
+  gap: 4mm;
+}
+
+.proposal-page .gap-6 {
+  gap: 3.5mm;
+}
+
+.proposal-page .gap-5 {
+  gap: 3mm;
+}
+
+.proposal-page .gap-4 {
+  gap: 2.5mm;
+}
+
+/* Reduce font sizes for A4 */
+.proposal-page .text-\[3\.2rem\] {
+  font-size: 2.2rem;
+}
+
+.proposal-page .text-\[1\.3rem\] {
+  font-size: 1.1rem;
+}
+
+.proposal-page .text-\[1\.2rem\] {
+  font-size: 1rem;
+}
+
+.proposal-page .text-\[1\.15rem\] {
+  font-size: 0.95rem;
+}
+
+.proposal-page .text-\[1\.1rem\] {
+  font-size: 0.92rem;
+}
+
+.proposal-page .text-\[1\.05rem\] {
+  font-size: 0.88rem;
+}
+
+.proposal-page .text-\[1rem\] {
+  font-size: 0.85rem;
+}
+
+.proposal-page .text-\[0\.95rem\] {
+  font-size: 0.82rem;
+}
+
+.proposal-page .text-\[0\.9rem\] {
+  font-size: 0.78rem;
+}
+
+.proposal-page .text-\[0\.88rem\] {
+  font-size: 0.76rem;
+}
+
+.proposal-page .text-\[0\.86rem\] {
+  font-size: 0.74rem;
+}
+
+.proposal-page .text-\[0\.85rem\] {
+  font-size: 0.73rem;
+}
+
+.proposal-page .text-\[0\.82rem\] {
+  font-size: 0.71rem;
+}
+
+.proposal-page .text-\[0\.8rem\] {
+  font-size: 0.7rem;
+}
+
+.proposal-page .text-\[0\.78rem\] {
+  font-size: 0.68rem;
+}
+
+.proposal-page .text-\[0\.75rem\] {
+  font-size: 0.65rem;
+}
+
+.proposal-page .text-\[0\.7rem\] {
+  font-size: 0.6rem;
+}
+
+/* Reduce line heights */
+.proposal-page .leading-relaxed {
+  line-height: 1.4;
+}
+
+/* Table adjustments */
+.proposal-page table {
+  font-size: 0.75rem;
+}
+
+.proposal-page th,
+.proposal-page td {
+  padding: 2mm 3mm;
+}
+
+/* Header padding adjustments */
+.proposal-page .py-16 {
+  padding-top: 12mm;
+  padding-bottom: 12mm;
+}
+
+.proposal-page .px-16 {
+  padding-left: 12mm;
+  padding-right: 12mm;
+}
+
+/* Proposal Document Print-Only Styles */
 @media print {
   /* Hide non-document elements */
   header,
@@ -105,6 +269,16 @@
     border-radius: 0 !important;
     page-break-after: always;
     break-after: page;
+    /* Force exact A4 dimensions */
+    width: 210mm !important;
+    height: 297mm !important;
+    max-width: 210mm !important;
+    padding: 0 !important;
+    box-sizing: border-box !important;
+    /* Flex for footer positioning */
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
   }
 
   .proposal-page:last-child {

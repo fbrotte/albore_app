@@ -1,6 +1,8 @@
 // Barrel export for proposal document components
 export { ProposalDocument } from './ProposalDocument'
+export { ProposalViewer, type ProposalViewerRef } from './ProposalViewer'
 export { useProposalData } from './useProposalData'
+export { useProposalCustomizations } from './useProposalCustomizations'
 
 // Types
 export type {

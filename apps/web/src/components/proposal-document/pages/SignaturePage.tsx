@@ -7,7 +7,8 @@ export function SignaturePage({ client, className }: SignaturePageProps) {
     <PageWrapper className={className}>
       <PageHeader title="Validation & Signature" badge="Accord" />
 
-      <div className="px-14 py-10">
+      {/* Main content - grows to push footer to bottom */}
+      <div className="flex-1 px-14 py-10">
         {/* Signature grid */}
         <div className="mb-8 grid grid-cols-2 gap-7">
           {/* Client signature */}
@@ -69,8 +70,8 @@ export function SignaturePage({ client, className }: SignaturePageProps) {
         </div>
       </div>
 
-      {/* Confidential banner */}
-      <div className="bg-[#1b2a4a] py-4 text-center text-[0.75rem] uppercase tracking-[0.15em] text-white/50">
+      {/* Confidential banner - stays at bottom with flex */}
+      <div className="mt-auto bg-[#1b2a4a] py-4 text-center text-[0.75rem] uppercase tracking-[0.15em] text-white/50">
         Document confidentiel - Tous droits reserves Albore Group
       </div>
     </PageWrapper>
