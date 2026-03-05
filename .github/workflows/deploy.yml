@@ -41,6 +41,13 @@ jobs:
           bun install
           echo "✅ Dependencies installed"
 
+      - name: Generate Prisma client
+        run: |
+          export BUN_INSTALL="$HOME/.bun"
+          export PATH="$BUN_INSTALL/bin:$PATH"
+          bunx prisma generate
+          echo "✅ Prisma client generated"
+
       - name: Build API
         run: |
           export BUN_INSTALL="$HOME/.bun"
