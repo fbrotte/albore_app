@@ -14,7 +14,7 @@ export type BillingType = z.infer<typeof BillingTypeSchema>
 // === CATEGORY ===
 
 export const CategorySchema = z.object({
-  id: z.string().cuid(),
+  id: z.string().min(1),
   name: z.string(),
   description: z.string().nullable(),
   icon: z.string().nullable(),
@@ -39,8 +39,8 @@ export type UpdateCategory = z.infer<typeof UpdateCategorySchema>
 // === SERVICE ===
 
 export const ServiceSchema = z.object({
-  id: z.string().uuid(),
-  categoryId: z.string().cuid(),
+  id: z.string().min(1),
+  categoryId: z.string().min(1),
   name: z.string(),
   semanticDescription: z.string(),
   unitType: UnitTypeSchema,
@@ -56,7 +56,7 @@ export const ServiceSchema = z.object({
 export type Service = z.infer<typeof ServiceSchema>
 
 export const CreateServiceSchema = z.object({
-  categoryId: z.string().cuid(),
+  categoryId: z.string().min(1),
   name: z.string().min(1, 'Le nom est requis'),
   semanticDescription: z.string().min(10, 'La description doit faire au moins 10 caractères'),
   unitType: UnitTypeSchema,
@@ -74,8 +74,8 @@ export type UpdateService = z.infer<typeof UpdateServiceSchema>
 // === PRICING TIER ===
 
 export const PricingTierSchema = z.object({
-  id: z.string().cuid(),
-  serviceId: z.string().uuid(),
+  id: z.string().min(1),
+  serviceId: z.string().min(1),
   minQuantity: z.number().int(),
   maxQuantity: z.number().int().nullable(),
   unitPrice: z.number(),
@@ -85,7 +85,7 @@ export const PricingTierSchema = z.object({
 export type PricingTier = z.infer<typeof PricingTierSchema>
 
 export const CreatePricingTierSchema = z.object({
-  serviceId: z.string().uuid(),
+  serviceId: z.string().min(1),
   minQuantity: z.number().int().min(0),
   maxQuantity: z.number().int().optional(),
   unitPrice: z.number().nonnegative(),

@@ -14,13 +14,13 @@ export class AnalysesTrpc {
   ) {
     this.router = this.trpc.router({
       list: this.trpc.protectedProcedure
-        .input(z.object({ clientId: z.string().cuid() }))
+        .input(z.object({ clientId: z.string().min(1) }))
         .query(async ({ input }) => {
           return this.analysesService.findAll(input.clientId)
         }),
 
       getById: this.trpc.protectedProcedure
-        .input(z.object({ id: z.string().cuid() }))
+        .input(z.object({ id: z.string().min(1) }))
         .query(async ({ input }) => {
           return this.analysesService.findById(input.id)
         }),
@@ -32,19 +32,19 @@ export class AnalysesTrpc {
         }),
 
       update: this.trpc.protectedProcedure
-        .input(z.object({ id: z.string().cuid(), data: UpdateAnalysisSchema }))
+        .input(z.object({ id: z.string().min(1), data: UpdateAnalysisSchema }))
         .mutation(async ({ input }) => {
           return this.analysesService.update(input.id, input.data)
         }),
 
       delete: this.trpc.protectedProcedure
-        .input(z.object({ id: z.string().cuid() }))
+        .input(z.object({ id: z.string().min(1) }))
         .mutation(async ({ input }) => {
           return this.analysesService.delete(input.id)
         }),
 
       getStats: this.trpc.protectedProcedure
-        .input(z.object({ id: z.string().cuid() }))
+        .input(z.object({ id: z.string().min(1) }))
         .query(async ({ input }) => {
           return this.analysesService.getStats(input.id)
         }),

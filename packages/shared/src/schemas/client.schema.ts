@@ -1,8 +1,8 @@
 import { z } from 'zod'
 
 export const ClientSchema = z.object({
-  id: z.string().cuid(),
-  userId: z.string().cuid(),
+  id: z.string().min(1),
+  userId: z.string().min(1),
   name: z.string(),
   company: z.string().nullable(),
   contactEmail: z.string().email().nullable(),

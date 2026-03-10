@@ -4,9 +4,9 @@ export const BillingPatternSchema = z.enum(['FIXED', 'VARIABLE', 'ONE_TIME'])
 export type BillingPattern = z.infer<typeof BillingPatternSchema>
 
 export const AnalysisSummarySchema = z.object({
-  id: z.string().cuid(),
-  analysisId: z.string().cuid(),
-  matchedServiceId: z.string().uuid().nullable(),
+  id: z.string().min(1),
+  analysisId: z.string().min(1),
+  matchedServiceId: z.string().min(1).nullable(),
   customLabel: z.string().nullable(),
   monthsCount: z.number().int(),
   totalHt: z.number(),

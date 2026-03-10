@@ -18,7 +18,7 @@ export class ClientsTrpc {
       }),
 
       getById: this.trpc.protectedProcedure
-        .input(z.object({ id: z.string().cuid() }))
+        .input(z.object({ id: z.string().min(1) }))
         .query(async ({ input }) => {
           return this.clientsService.findById(input.id)
         }),
@@ -30,13 +30,13 @@ export class ClientsTrpc {
         }),
 
       update: this.trpc.protectedProcedure
-        .input(z.object({ id: z.string().cuid(), data: UpdateClientSchema }))
+        .input(z.object({ id: z.string().min(1), data: UpdateClientSchema }))
         .mutation(async ({ input }) => {
           return this.clientsService.update(input.id, input.data)
         }),
 
       delete: this.trpc.protectedProcedure
-        .input(z.object({ id: z.string().cuid() }))
+        .input(z.object({ id: z.string().min(1) }))
         .mutation(async ({ input }) => {
           return this.clientsService.delete(input.id)
         }),

@@ -34,8 +34,8 @@ export type VisionExtractionResult = z.infer<typeof VisionExtractionResultSchema
 // === INVOICE ===
 
 export const InvoiceSchema = z.object({
-  id: z.string().cuid(),
-  analysisId: z.string().cuid(),
+  id: z.string().min(1),
+  analysisId: z.string().min(1),
   vendorName: z.string(),
   invoiceNumber: z.string().nullable(),
   invoiceDate: z.date().nullable(),
@@ -53,7 +53,7 @@ export const InvoiceSchema = z.object({
 export type Invoice = z.infer<typeof InvoiceSchema>
 
 export const UploadInvoiceSchema = z.object({
-  analysisId: z.string().cuid(),
+  analysisId: z.string().min(1),
   fileName: z.string(),
   fileContent: z.string(), // Base64 encoded
 })
@@ -62,22 +62,22 @@ export type UploadInvoice = z.infer<typeof UploadInvoiceSchema>
 // === INVOICE LINE ===
 
 export const MatchCandidateSchema = z.object({
-  serviceId: z.string().cuid(),
+  serviceId: z.string().min(1),
   serviceName: z.string(),
   score: z.number(),
 })
 export type MatchCandidate = z.infer<typeof MatchCandidateSchema>
 
 export const InvoiceLineSchema = z.object({
-  id: z.string().cuid(),
-  invoiceId: z.string().cuid(),
+  id: z.string().min(1),
+  invoiceId: z.string().min(1),
   description: z.string(),
   quantity: z.number().nullable(),
   unitPrice: z.number().nullable(),
   totalHt: z.number(),
   periodStart: z.date().nullable(),
   periodEnd: z.date().nullable(),
-  matchedServiceId: z.string().cuid().nullable(),
+  matchedServiceId: z.string().min(1).nullable(),
   matchCandidates: z.array(MatchCandidateSchema).nullable(),
   matchStatus: MatchStatusSchema,
   matchConfidence: z.number().nullable(),
@@ -87,8 +87,8 @@ export const InvoiceLineSchema = z.object({
 export type InvoiceLine = z.infer<typeof InvoiceLineSchema>
 
 export const SetMatchSchema = z.object({
-  lineId: z.string().cuid(),
-  serviceId: z.string().cuid(),
+  lineId: z.string().min(1),
+  serviceId: z.string().min(1),
 })
 export type SetMatch = z.infer<typeof SetMatchSchema>
 
@@ -109,7 +109,7 @@ export const BulkUploadFileSchema = z.object({
 export type BulkUploadFile = z.infer<typeof BulkUploadFileSchema>
 
 export const BulkUploadInvoiceSchema = z.object({
-  analysisId: z.string().cuid(),
+  analysisId: z.string().min(1),
   files: z.array(BulkUploadFileSchema).min(1).max(50),
 })
 export type BulkUploadInvoice = z.infer<typeof BulkUploadInvoiceSchema>
@@ -135,7 +135,7 @@ export type JobProgress = z.infer<typeof JobProgressSchema>
 
 export const JobStatusSchema = z.object({
   jobId: z.string(),
-  invoiceId: z.string().cuid(),
+  invoiceId: z.string().min(1),
   state: z.enum(['waiting', 'active', 'completed', 'failed', 'delayed']),
   progress: JobProgressSchema.nullable(),
   fileName: z.string(),
@@ -145,7 +145,7 @@ export type JobStatus = z.infer<typeof JobStatusSchema>
 
 export const BatchStatusSchema = z.object({
   batchId: z.string().uuid(),
-  analysisId: z.string().cuid(),
+  analysisId: z.string().min(1),
   totalJobs: z.number(),
   completedJobs: z.number(),
   failedJobs: z.number(),

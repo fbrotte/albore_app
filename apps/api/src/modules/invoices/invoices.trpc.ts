@@ -17,7 +17,7 @@ export class InvoicesTrpc {
   ) {
     this.router = this.trpc.router({
       list: this.trpc.protectedProcedure
-        .input(z.object({ analysisId: z.string().cuid() }))
+        .input(z.object({ analysisId: z.string().min(1) }))
         .query(async ({ input }) => {
           // Verify analysis exists
           await this.analysesService.verifyAccess(input.analysisId)
@@ -25,7 +25,7 @@ export class InvoicesTrpc {
         }),
 
       getById: this.trpc.protectedProcedure
-        .input(z.object({ id: z.string().cuid() }))
+        .input(z.object({ id: z.string().min(1) }))
         .query(async ({ input }) => {
           return this.invoicesService.findById(input.id)
         }),
@@ -37,13 +37,13 @@ export class InvoicesTrpc {
         }),
 
       reprocess: this.trpc.protectedProcedure
-        .input(z.object({ id: z.string().cuid() }))
+        .input(z.object({ id: z.string().min(1) }))
         .mutation(async ({ input }) => {
           return this.invoicesService.reprocess(input.id)
         }),
 
       delete: this.trpc.protectedProcedure
-        .input(z.object({ id: z.string().cuid() }))
+        .input(z.object({ id: z.string().min(1) }))
         .mutation(async ({ input }) => {
           return this.invoicesService.delete(input.id)
         }),
@@ -78,7 +78,7 @@ export class InvoicesTrpc {
         .input(
           z.object({
             batchId: z.string().uuid(),
-            analysisId: z.string().cuid(),
+            analysisId: z.string().min(1),
           }),
         )
         .query(async ({ input }) => {
@@ -87,7 +87,7 @@ export class InvoicesTrpc {
         }),
 
       retryInvoice: this.trpc.protectedProcedure
-        .input(z.object({ invoiceId: z.string().cuid() }))
+        .input(z.object({ invoiceId: z.string().min(1) }))
         .mutation(async ({ input }) => {
           return this.invoicesService.retryInvoice(input.invoiceId)
         }),

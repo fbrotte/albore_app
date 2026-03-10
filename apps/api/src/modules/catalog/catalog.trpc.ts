@@ -28,7 +28,7 @@ export class CatalogTrpc {
         }),
 
         getById: this.trpc.protectedProcedure
-          .input(z.object({ id: z.string().cuid() }))
+          .input(z.object({ id: z.string().min(1) }))
           .query(async ({ input }) => {
             return this.catalogService.findCategoryById(input.id)
           }),
@@ -38,13 +38,13 @@ export class CatalogTrpc {
         }),
 
         update: this.trpc.adminProcedure
-          .input(z.object({ id: z.string().cuid(), data: UpdateCategorySchema }))
+          .input(z.object({ id: z.string().min(1), data: UpdateCategorySchema }))
           .mutation(async ({ input }) => {
             return this.catalogService.updateCategory(input.id, input.data)
           }),
 
         delete: this.trpc.adminProcedure
-          .input(z.object({ id: z.string().cuid() }))
+          .input(z.object({ id: z.string().min(1) }))
           .mutation(async ({ input }) => {
             return this.catalogService.deleteCategory(input.id)
           }),
@@ -54,13 +54,13 @@ export class CatalogTrpc {
 
       services: this.trpc.router({
         list: this.trpc.protectedProcedure
-          .input(z.object({ categoryId: z.string().cuid().optional() }).optional())
+          .input(z.object({ categoryId: z.string().min(1).optional() }).optional())
           .query(async ({ input }) => {
             return this.catalogService.findAllServices(input?.categoryId)
           }),
 
         getById: this.trpc.protectedProcedure
-          .input(z.object({ id: z.string().cuid() }))
+          .input(z.object({ id: z.string().min(1) }))
           .query(async ({ input }) => {
             return this.catalogService.findServiceById(input.id)
           }),
@@ -70,19 +70,19 @@ export class CatalogTrpc {
         }),
 
         update: this.trpc.adminProcedure
-          .input(z.object({ id: z.string().cuid(), data: UpdateServiceSchema }))
+          .input(z.object({ id: z.string().min(1), data: UpdateServiceSchema }))
           .mutation(async ({ input }) => {
             return this.catalogService.updateService(input.id, input.data)
           }),
 
         delete: this.trpc.adminProcedure
-          .input(z.object({ id: z.string().cuid() }))
+          .input(z.object({ id: z.string().min(1) }))
           .mutation(async ({ input }) => {
             return this.catalogService.deleteService(input.id)
           }),
 
         calculatePrice: this.trpc.protectedProcedure
-          .input(z.object({ serviceId: z.string().uuid(), quantity: z.number().positive() }))
+          .input(z.object({ serviceId: z.string().min(1), quantity: z.number().positive() }))
           .query(async ({ input }) => {
             return this.catalogService.calculatePrice(input.serviceId, input.quantity)
           }),
@@ -92,7 +92,7 @@ export class CatalogTrpc {
 
       pricingTiers: this.trpc.router({
         list: this.trpc.protectedProcedure
-          .input(z.object({ serviceId: z.string().uuid() }))
+          .input(z.object({ serviceId: z.string().min(1) }))
           .query(async ({ input }) => {
             return this.catalogService.findPricingTiers(input.serviceId)
           }),
@@ -104,13 +104,13 @@ export class CatalogTrpc {
           }),
 
         update: this.trpc.adminProcedure
-          .input(z.object({ id: z.string().cuid(), data: UpdatePricingTierSchema }))
+          .input(z.object({ id: z.string().min(1), data: UpdatePricingTierSchema }))
           .mutation(async ({ input }) => {
             return this.catalogService.updatePricingTier(input.id, input.data)
           }),
 
         delete: this.trpc.adminProcedure
-          .input(z.object({ id: z.string().cuid() }))
+          .input(z.object({ id: z.string().min(1) }))
           .mutation(async ({ input }) => {
             return this.catalogService.deletePricingTier(input.id)
           }),

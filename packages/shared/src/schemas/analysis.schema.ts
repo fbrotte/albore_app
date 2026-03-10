@@ -10,8 +10,8 @@ export const AnalysisStatusSchema = z.enum([
 export type AnalysisStatus = z.infer<typeof AnalysisStatusSchema>
 
 export const AnalysisSchema = z.object({
-  id: z.string().cuid(),
-  clientId: z.string().cuid(),
+  id: z.string().min(1),
+  clientId: z.string().min(1),
   name: z.string(),
   status: AnalysisStatusSchema,
   notes: z.string().nullable(),
@@ -22,7 +22,7 @@ export const AnalysisSchema = z.object({
 export type Analysis = z.infer<typeof AnalysisSchema>
 
 export const CreateAnalysisSchema = z.object({
-  clientId: z.string().cuid(),
+  clientId: z.string().min(1),
   name: z.string().min(1, 'Le nom est requis'),
   notes: z.string().optional(),
 })
