@@ -1,7 +1,6 @@
 import { Routes, Route, Navigate, useParams } from 'react-router-dom'
 import { useIsAuthenticated, useAuthLoading } from './stores/auth.store'
 import LoginPage from './pages/LoginPage'
-import RegisterPage from './pages/RegisterPage'
 import AnalyticsDashboardPage from './pages/AnalyticsDashboardPage'
 import ClientsPage from './pages/ClientsPage'
 import ClientDetailPage from './pages/ClientDetailPage'
@@ -9,6 +8,8 @@ import CreateAnalysisPage from './pages/CreateAnalysisPage'
 import AnalysisPage from './pages/AnalysisPage'
 import ProposalDocumentDemoPage from './pages/ProposalDocumentDemoPage'
 import ServicesPage from './pages/ServicesPage'
+import UsersPage from './pages/UsersPage'
+import ProfilePage from './pages/ProfilePage'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useIsAuthenticated()
@@ -63,15 +64,6 @@ function App() {
           </PublicRoute>
         }
       />
-      <Route
-        path="/register"
-        element={
-          <PublicRoute>
-            <RegisterPage />
-          </PublicRoute>
-        }
-      />
-
       {/* Protected Routes */}
       <Route
         path="/dashboard"
@@ -152,6 +144,26 @@ function App() {
         element={
           <ProtectedRoute>
             <ServicesPage />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Users */}
+      <Route
+        path="/users"
+        element={
+          <ProtectedRoute>
+            <UsersPage />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Profile */}
+      <Route
+        path="/profile"
+        element={
+          <ProtectedRoute>
+            <ProfilePage />
           </ProtectedRoute>
         }
       />

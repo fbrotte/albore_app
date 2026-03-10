@@ -23,6 +23,7 @@ describe('AuthStore', () => {
           id: 'user-123',
           email: 'test@example.com',
           name: 'Test User',
+          phone: null,
           role: 'USER' as const,
         },
       }
@@ -43,7 +44,7 @@ describe('AuthStore', () => {
       useAuthStore.setState({
         accessToken: 'token',
         refreshToken: 'refresh',
-        user: { id: '1', email: 'test@test.com', name: 'Test', role: 'USER' },
+        user: { id: '1', email: 'test@test.com', name: 'Test', phone: null, role: 'USER' },
         isAuthenticated: true,
         isLoading: false,
       })
@@ -60,7 +61,13 @@ describe('AuthStore', () => {
 
   describe('setTokens', () => {
     it('should update tokens without affecting user', () => {
-      const user = { id: '1', email: 'test@test.com', name: 'Test', role: 'USER' as const }
+      const user = {
+        id: '1',
+        email: 'test@test.com',
+        name: 'Test',
+        phone: null,
+        role: 'USER' as const,
+      }
       useAuthStore.setState({
         accessToken: 'old-token',
         refreshToken: 'old-refresh',

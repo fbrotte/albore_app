@@ -2,7 +2,7 @@ import { Injectable, Inject } from '@nestjs/common'
 import { TrpcService } from '../../trpc/trpc.service'
 import { AuthService } from './auth.service'
 import { UsersService } from '../users/users.service'
-import { LoginSchema, RegisterSchema, RefreshTokenSchema } from '@template-dev/shared'
+import { LoginSchema, RefreshTokenSchema } from '@template-dev/shared'
 
 @Injectable()
 export class AuthTrpc {
@@ -16,10 +16,6 @@ export class AuthTrpc {
     this.router = this.trpc.router({
       login: this.trpc.procedure.input(LoginSchema).mutation(async ({ input }) => {
         return await this.authService.login(input)
-      }),
-
-      register: this.trpc.procedure.input(RegisterSchema).mutation(async ({ input }) => {
-        return await this.authService.register(input)
       }),
 
       refresh: this.trpc.procedure.input(RefreshTokenSchema).mutation(async ({ input }) => {

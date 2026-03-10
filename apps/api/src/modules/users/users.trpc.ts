@@ -2,7 +2,7 @@ import { Injectable, Inject } from '@nestjs/common'
 import { z } from 'zod'
 import { TrpcService } from '../../trpc/trpc.service'
 import { UsersService } from './users.service'
-import { UpdateUserSchema } from '@template-dev/shared'
+import { CreateUserSchema, UpdateUserSchema, UpdatePasswordSchema } from '@template-dev/shared'
 import { assertOwnerOrAdminTrpc } from '../auth/helpers/assert-owner'
 
 @Injectable()
@@ -14,6 +14,10 @@ export class UsersTrpc {
     @Inject(UsersService) private readonly usersService: UsersService,
   ) {
     this.router = this.trpc.router({
+      create: this.trpc.protectedProcedure.input(CreateUserSchema).mutation(async ({ input }) => {
+        return await this.usersService.create(input)
+      }),
+
       list: this.trpc.protectedProcedure.query(async () => {
         return await this.usersService.findAll()
       }),
@@ -36,6 +40,16 @@ export class UsersTrpc {
         .mutation(async ({ input, ctx }) => {
           assertOwnerOrAdminTrpc(input.id, ctx.user!)
           return await this.usersService.remove(input.id)
+        }),
+
+      updatePassword: this.trpc.protectedProcedure
+        .input(UpdatePasswordSchema)
+        .mutation(async ({ input, ctx }) => {
+          return await this.usersService.updatePassword(
+            ctx.user!.userId,
+            input.currentPassword,
+            input.newPassword,
+          )
         }),
     })
   }

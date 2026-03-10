@@ -25,6 +25,7 @@ describe('AuthService', () => {
     email: 'test@example.com',
     password: 'hashed_password',
     name: 'Test User',
+    phone: '06 12 34 56 78',
     role: 'USER',
     createdAt: new Date(),
     updatedAt: new Date(),

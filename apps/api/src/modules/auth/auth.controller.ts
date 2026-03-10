@@ -2,28 +2,12 @@ import { Controller, Post, Body, UseGuards, Request, Inject } from '@nestjs/comm
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiBody, ApiResponse } from '@nestjs/swagger'
 import { AuthService } from './auth.service'
 import { JwtAuthGuard } from './guards/jwt-auth.guard'
-import {
-  LoginDto,
-  RegisterDto,
-  RefreshTokenDto,
-  AuthResponseDto,
-  ApiErrorDto,
-} from '../../common/dto'
+import { LoginDto, RefreshTokenDto, AuthResponseDto, ApiErrorDto } from '../../common/dto'
 
 @ApiTags('Authentication')
 @Controller('auth')
 export class AuthController {
   constructor(@Inject(AuthService) private readonly authService: AuthService) {}
-
-  @Post('register')
-  @ApiOperation({ summary: 'Register a new user' })
-  @ApiBody({ type: RegisterDto })
-  @ApiResponse({ status: 201, type: AuthResponseDto })
-  @ApiResponse({ status: 400, description: 'Validation error', type: ApiErrorDto })
-  @ApiResponse({ status: 409, description: 'User already exists', type: ApiErrorDto })
-  async register(@Body() body: RegisterDto) {
-    return this.authService.register(body)
-  }
 
   @Post('login')
   @ApiOperation({ summary: 'Login with email and password' })

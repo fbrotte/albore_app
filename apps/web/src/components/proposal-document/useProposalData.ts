@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import { trpc } from '@/lib/trpc'
+import { useUser } from '@/stores/auth.store'
 import { GROUP_CONFIG } from './constants'
 import type { ProposalData, CategoryGroup, ServiceSummary, ProposalTotals } from './types'
 
@@ -15,6 +16,7 @@ const CATEGORY_GROUP_FALLBACK: Record<string, CategoryGroup['slug']> = {
 }
 
 export function useProposalData(analysisId: string | undefined) {
+  const user = useUser()
   const { data: analysis, isLoading: isLoadingAnalysis } = trpc.analyses.getById.useQuery(
     { id: analysisId! },
     { enabled: !!analysisId },
@@ -133,9 +135,9 @@ export function useProposalData(analysisId: string | undefined) {
         logoUrl: undefined,
       },
       albore: {
-        consultant: 'Richard BERTONCINI',
-        email: 'bertoncini@alboregroup.com',
-        phone: '06 50 01 51 03',
+        consultant: user?.name ?? 'Consultant Albore',
+        email: user?.email ?? '',
+        phone: user?.phone ?? '',
       },
       date: new Date(),
       groups,
@@ -143,7 +145,7 @@ export function useProposalData(analysisId: string | undefined) {
       totals,
       hasGroup,
     }
-  }, [analysis, summaries, analysisId])
+  }, [analysis, summaries, analysisId, user])
 
   return {
     data: proposalData,

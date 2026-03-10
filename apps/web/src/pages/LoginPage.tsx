@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { trpc } from '@/lib/trpc'
 import { useAuthStore } from '@/stores/auth.store'
 import { Button } from '@/components/ui/button'
@@ -77,16 +77,10 @@ export default function LoginPage() {
               />
             </div>
           </CardContent>
-          <CardFooter className="flex flex-col space-y-4">
+          <CardFooter>
             <Button type="submit" className="w-full" disabled={loginMutation.isPending}>
               {loginMutation.isPending ? 'Connexion en cours...' : 'Se connecter'}
             </Button>
-            <p className="text-center text-sm text-muted-foreground">
-              Pas encore de compte ?{' '}
-              <Link to="/register" className="text-primary hover:underline">
-                S'inscrire
-              </Link>
-            </p>
           </CardFooter>
         </form>
       </Card>
