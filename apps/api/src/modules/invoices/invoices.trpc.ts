@@ -18,9 +18,9 @@ export class InvoicesTrpc {
     this.router = this.trpc.router({
       list: this.trpc.protectedProcedure
         .input(z.object({ analysisId: z.string().cuid() }))
-        .query(async ({ input, ctx }) => {
-          // Verify access
-          await this.analysesService.verifyAccess(input.analysisId, ctx.user!.userId)
+        .query(async ({ input }) => {
+          // Verify analysis exists
+          await this.analysesService.verifyAccess(input.analysisId)
           return this.invoicesService.findAll(input.analysisId)
         }),
 
@@ -32,36 +32,30 @@ export class InvoicesTrpc {
 
       upload: this.trpc.protectedProcedure
         .input(UploadInvoiceSchema)
-        .mutation(async ({ input, ctx }) => {
-          return this.invoicesService.upload(
-            input.analysisId,
-            ctx.user!.userId,
-            input.fileName,
-            input.fileContent,
-          )
+        .mutation(async ({ input }) => {
+          return this.invoicesService.upload(input.analysisId, input.fileName, input.fileContent)
         }),
 
       reprocess: this.trpc.protectedProcedure
         .input(z.object({ id: z.string().cuid() }))
-        .mutation(async ({ input, ctx }) => {
-          return this.invoicesService.reprocess(input.id, ctx.user!.userId)
+        .mutation(async ({ input }) => {
+          return this.invoicesService.reprocess(input.id)
         }),
 
       delete: this.trpc.protectedProcedure
         .input(z.object({ id: z.string().cuid() }))
-        .mutation(async ({ input, ctx }) => {
-          return this.invoicesService.delete(input.id, ctx.user!.userId)
+        .mutation(async ({ input }) => {
+          return this.invoicesService.delete(input.id)
         }),
 
       // === BULK UPLOAD ENDPOINTS ===
 
       bulkUpload: this.trpc.protectedProcedure
         .input(BulkUploadInvoiceSchema)
-        .mutation(async ({ input, ctx }) => {
+        .mutation(async ({ input }) => {
           const batchId = uuidv4()
           const results = await this.invoicesService.createBulkInvoices(
             input.analysisId,
-            ctx.user!.userId,
             input.files,
             batchId,
           )
@@ -87,15 +81,15 @@ export class InvoicesTrpc {
             analysisId: z.string().cuid(),
           }),
         )
-        .query(async ({ input, ctx }) => {
-          await this.analysesService.verifyAccess(input.analysisId, ctx.user!.userId)
+        .query(async ({ input }) => {
+          await this.analysesService.verifyAccess(input.analysisId)
           return this.invoicesService.getBatchStatus(input.batchId, input.analysisId)
         }),
 
       retryInvoice: this.trpc.protectedProcedure
         .input(z.object({ invoiceId: z.string().cuid() }))
-        .mutation(async ({ input, ctx }) => {
-          return this.invoicesService.retryInvoice(input.invoiceId, ctx.user!.userId)
+        .mutation(async ({ input }) => {
+          return this.invoicesService.retryInvoice(input.invoiceId)
         }),
     })
   }

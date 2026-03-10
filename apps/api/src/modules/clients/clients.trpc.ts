@@ -13,14 +13,14 @@ export class ClientsTrpc {
     @Inject(ClientsService) private readonly clientsService: ClientsService,
   ) {
     this.router = this.trpc.router({
-      list: this.trpc.protectedProcedure.query(async ({ ctx }) => {
-        return this.clientsService.findAll(ctx.user!.userId)
+      list: this.trpc.protectedProcedure.query(async () => {
+        return this.clientsService.findAll()
       }),
 
       getById: this.trpc.protectedProcedure
         .input(z.object({ id: z.string().cuid() }))
-        .query(async ({ input, ctx }) => {
-          return this.clientsService.findById(input.id, ctx.user!.userId)
+        .query(async ({ input }) => {
+          return this.clientsService.findById(input.id)
         }),
 
       create: this.trpc.protectedProcedure
@@ -31,14 +31,14 @@ export class ClientsTrpc {
 
       update: this.trpc.protectedProcedure
         .input(z.object({ id: z.string().cuid(), data: UpdateClientSchema }))
-        .mutation(async ({ input, ctx }) => {
-          return this.clientsService.update(input.id, ctx.user!.userId, input.data)
+        .mutation(async ({ input }) => {
+          return this.clientsService.update(input.id, input.data)
         }),
 
       delete: this.trpc.protectedProcedure
         .input(z.object({ id: z.string().cuid() }))
-        .mutation(async ({ input, ctx }) => {
-          return this.clientsService.delete(input.id, ctx.user!.userId)
+        .mutation(async ({ input }) => {
+          return this.clientsService.delete(input.id)
         }),
     })
   }

@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ForbiddenException, Inject } from '@nestjs/common'
+import { Injectable, NotFoundException, Inject } from '@nestjs/common'
 import { PrismaService } from '../prisma/prisma.service'
 import type { CreateAnalysis, UpdateAnalysis } from '@template-dev/shared'
 
@@ -6,10 +6,10 @@ import type { CreateAnalysis, UpdateAnalysis } from '@template-dev/shared'
 export class AnalysesService {
   constructor(@Inject(PrismaService) private prisma: PrismaService) {}
 
-  async findAll(clientId: string, userId: string) {
-    // Verify client ownership
+  async findAll(clientId: string) {
+    // Verify client exists
     const client = await this.prisma.client.findFirst({
-      where: { id: clientId, userId, deletedAt: null },
+      where: { id: clientId, deletedAt: null },
     })
 
     if (!client) {
@@ -25,7 +25,7 @@ export class AnalysesService {
     })
   }
 
-  async findById(id: string, userId: string) {
+  async findById(id: string) {
     const analysis = await this.prisma.analysis.findFirst({
       where: { id, deletedAt: null },
       include: {
@@ -48,18 +48,13 @@ export class AnalysesService {
       throw new NotFoundException(`Analysis ${id} not found`)
     }
 
-    // Verify ownership
-    if (analysis.client.userId !== userId) {
-      throw new ForbiddenException('Access denied')
-    }
-
     return analysis
   }
 
-  async create(userId: string, data: CreateAnalysis) {
-    // Verify client ownership
+  async create(data: CreateAnalysis) {
+    // Verify client exists
     const client = await this.prisma.client.findFirst({
-      where: { id: data.clientId, userId, deletedAt: null },
+      where: { id: data.clientId, deletedAt: null },
     })
 
     if (!client) {
@@ -76,18 +71,13 @@ export class AnalysesService {
     })
   }
 
-  async update(id: string, userId: string, data: UpdateAnalysis) {
+  async update(id: string, data: UpdateAnalysis) {
     const analysis = await this.prisma.analysis.findFirst({
       where: { id, deletedAt: null },
-      include: { client: true },
     })
 
     if (!analysis) {
       throw new NotFoundException(`Analysis ${id} not found`)
-    }
-
-    if (analysis.client.userId !== userId) {
-      throw new ForbiddenException('Access denied')
     }
 
     return this.prisma.analysis.update({
@@ -96,18 +86,13 @@ export class AnalysesService {
     })
   }
 
-  async delete(id: string, userId: string) {
+  async delete(id: string) {
     const analysis = await this.prisma.analysis.findFirst({
       where: { id, deletedAt: null },
-      include: { client: true },
     })
 
     if (!analysis) {
       throw new NotFoundException(`Analysis ${id} not found`)
-    }
-
-    if (analysis.client.userId !== userId) {
-      throw new ForbiddenException('Access denied')
     }
 
     return this.prisma.analysis.update({
@@ -116,8 +101,8 @@ export class AnalysesService {
     })
   }
 
-  async getStats(id: string, userId: string) {
-    const analysis = await this.findById(id, userId)
+  async getStats(id: string) {
+    const analysis = await this.findById(id)
 
     // Calculate stats
     const invoices = analysis.invoices
@@ -139,18 +124,15 @@ export class AnalysesService {
     return stats
   }
 
-  async getDashboardStats(userId: string) {
-    // Get all clients for this user
+  async getDashboardStats() {
+    // Get all clients
     const clients = await this.prisma.client.findMany({
-      where: { userId, deletedAt: null },
+      where: { deletedAt: null },
     })
-
-    const clientIds = clients.map((c) => c.id)
 
     // Get all analyses with their summaries
     const analyses = await this.prisma.analysis.findMany({
       where: {
-        clientId: { in: clientIds },
         deletedAt: null,
       },
       include: {
@@ -209,19 +191,14 @@ export class AnalysesService {
     }
   }
 
-  // Verify user has access to analysis
-  async verifyAccess(analysisId: string, userId: string): Promise<void> {
+  // Verify analysis exists
+  async verifyAccess(analysisId: string): Promise<void> {
     const analysis = await this.prisma.analysis.findFirst({
       where: { id: analysisId, deletedAt: null },
-      include: { client: true },
     })
 
     if (!analysis) {
       throw new NotFoundException(`Analysis ${analysisId} not found`)
-    }
-
-    if (analysis.client.userId !== userId) {
-      throw new ForbiddenException('Access denied')
     }
   }
 }

@@ -49,21 +49,25 @@ export class InvoicesService {
 
   async upload(
     analysisId: string,
-    userId: string,
     fileName: string,
     fileContent: string,
   ): Promise<{
     invoice: Awaited<ReturnType<typeof this.findById>>
     extraction: VisionExtractionResult
   }> {
-    // Verify access
-    await this.analysesService.verifyAccess(analysisId, userId)
+    // Verify analysis exists
+    await this.analysesService.verifyAccess(analysisId)
 
     // Decode base64 content
     const fileBuffer = Buffer.from(fileContent, 'base64')
 
-    // Save file
-    const filePath = await this.storageService.saveFile(userId, analysisId, fileName, fileBuffer)
+    // Save file (use analysisId as folder)
+    const filePath = await this.storageService.saveFile(
+      analysisId,
+      analysisId,
+      fileName,
+      fileBuffer,
+    )
 
     // Create invoice record with PROCESSING status
     const invoice = await this.prisma.invoice.create({
@@ -139,18 +143,8 @@ export class InvoicesService {
     }
   }
 
-  async reprocess(id: string, userId: string) {
+  async reprocess(id: string) {
     const invoice = await this.findById(id)
-
-    // Verify access through analysis
-    const analysis = await this.prisma.analysis.findUnique({
-      where: { id: invoice.analysisId },
-      include: { client: true },
-    })
-
-    if (!analysis || analysis.client.userId !== userId) {
-      throw new NotFoundException(`Invoice ${id} not found`)
-    }
 
     // Get file content
     const fileBuffer = await this.storageService.getFile(invoice.filePath)
@@ -216,18 +210,8 @@ export class InvoicesService {
     }
   }
 
-  async delete(id: string, userId: string) {
+  async delete(id: string) {
     const invoice = await this.findById(id)
-
-    // Verify access
-    const analysis = await this.prisma.analysis.findUnique({
-      where: { id: invoice.analysisId },
-      include: { client: true },
-    })
-
-    if (!analysis || analysis.client.userId !== userId) {
-      throw new NotFoundException(`Invoice ${id} not found`)
-    }
 
     // Delete file
     try {
@@ -246,12 +230,11 @@ export class InvoicesService {
 
   async createBulkInvoices(
     analysisId: string,
-    userId: string,
     files: BulkUploadFile[],
     batchId: string,
   ): Promise<Array<{ invoiceId: string; jobId: string }>> {
-    // Verify access
-    await this.analysesService.verifyAccess(analysisId, userId)
+    // Verify analysis exists
+    await this.analysesService.verifyAccess(analysisId)
 
     const results: Array<{ invoiceId: string; jobId: string }> = []
     const jobDataList: InvoiceJobData[] = []
@@ -261,9 +244,9 @@ export class InvoicesService {
       const file = files[i]
       const fileBuffer = Buffer.from(file.fileContent, 'base64')
 
-      // Save file
+      // Save file (use analysisId as folder)
       const filePath = await this.storageService.saveFile(
-        userId,
+        analysisId,
         analysisId,
         file.fileName,
         fileBuffer,
@@ -283,7 +266,7 @@ export class InvoicesService {
       jobDataList.push({
         invoiceId: invoice.id,
         analysisId,
-        userId,
+        userId: '', // No longer used for access control
         fileName: file.fileName,
         filePath,
         batchId,
@@ -320,21 +303,8 @@ export class InvoicesService {
     return results
   }
 
-  async retryInvoice(
-    invoiceId: string,
-    userId: string,
-  ): Promise<{ invoiceId: string; jobId: string }> {
+  async retryInvoice(invoiceId: string): Promise<{ invoiceId: string; jobId: string }> {
     const invoice = await this.findById(invoiceId)
-
-    // Verify access
-    const analysis = await this.prisma.analysis.findUnique({
-      where: { id: invoice.analysisId },
-      include: { client: true },
-    })
-
-    if (!analysis || analysis.client.userId !== userId) {
-      throw new NotFoundException(`Invoice ${invoiceId} not found`)
-    }
 
     // Delete existing lines
     await this.prisma.invoiceLine.deleteMany({ where: { invoiceId } })
@@ -353,7 +323,7 @@ export class InvoicesService {
     const jobData: InvoiceJobData = {
       invoiceId,
       analysisId: invoice.analysisId,
-      userId,
+      userId: '', // No longer used for access control
       fileName: invoice.fileName,
       filePath: invoice.filePath,
       batchId: `retry-${invoiceId}`,

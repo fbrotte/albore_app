@@ -17,8 +17,8 @@ export class SummariesTrpc {
     this.router = this.trpc.router({
       list: this.trpc.protectedProcedure
         .input(z.object({ analysisId: z.string().cuid() }))
-        .query(async ({ input, ctx }) => {
-          await this.analysesService.verifyAccess(input.analysisId, ctx.user!.userId)
+        .query(async ({ input }) => {
+          await this.analysesService.verifyAccess(input.analysisId)
           return this.summariesService.findByAnalysis(input.analysisId)
         }),
 
@@ -30,8 +30,8 @@ export class SummariesTrpc {
 
       consolidate: this.trpc.protectedProcedure
         .input(z.object({ analysisId: z.string().cuid() }))
-        .mutation(async ({ input, ctx }) => {
-          await this.analysesService.verifyAccess(input.analysisId, ctx.user!.userId)
+        .mutation(async ({ input }) => {
+          await this.analysesService.verifyAccess(input.analysisId)
           return this.summariesService.consolidate(input.analysisId)
         }),
 

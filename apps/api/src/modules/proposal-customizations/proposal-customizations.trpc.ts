@@ -20,17 +20,17 @@ export class ProposalCustomizationsTrpc {
     this.router = this.trpc.router({
       get: this.trpc.protectedProcedure
         .input(GetProposalCustomizationsSchema)
-        .query(async ({ input, ctx }) => {
-          // Verify the user has access to this analysis
-          await this.analysesService.verifyAccess(input.analysisId, ctx.user!.userId)
+        .query(async ({ input }) => {
+          // Verify the analysis exists
+          await this.analysesService.verifyAccess(input.analysisId)
           return this.proposalCustomizationsService.getByAnalysisId(input.analysisId)
         }),
 
       upsert: this.trpc.protectedProcedure
         .input(UpsertProposalCustomizationSchema)
-        .mutation(async ({ input, ctx }) => {
-          // Verify the user has access to this analysis
-          await this.analysesService.verifyAccess(input.analysisId, ctx.user!.userId)
+        .mutation(async ({ input }) => {
+          // Verify the analysis exists
+          await this.analysesService.verifyAccess(input.analysisId)
           return this.proposalCustomizationsService.upsert(input)
         }),
     })

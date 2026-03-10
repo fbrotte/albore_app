@@ -6,9 +6,9 @@ import type { CreateClient, UpdateClient } from '@template-dev/shared'
 export class ClientsService {
   constructor(@Inject(PrismaService) private prisma: PrismaService) {}
 
-  async findAll(userId: string) {
+  async findAll() {
     return this.prisma.client.findMany({
-      where: { userId, deletedAt: null },
+      where: { deletedAt: null },
       orderBy: { name: 'asc' },
       include: {
         _count: { select: { analyses: { where: { deletedAt: null } } } },
@@ -16,9 +16,9 @@ export class ClientsService {
     })
   }
 
-  async findById(id: string, userId: string) {
+  async findById(id: string) {
     const client = await this.prisma.client.findFirst({
-      where: { id, userId, deletedAt: null },
+      where: { id, deletedAt: null },
       include: {
         analyses: {
           where: { deletedAt: null },
@@ -46,9 +46,9 @@ export class ClientsService {
     })
   }
 
-  async update(id: string, userId: string, data: UpdateClient) {
+  async update(id: string, data: UpdateClient) {
     const client = await this.prisma.client.findFirst({
-      where: { id, userId, deletedAt: null },
+      where: { id, deletedAt: null },
     })
 
     if (!client) {
@@ -61,9 +61,9 @@ export class ClientsService {
     })
   }
 
-  async delete(id: string, userId: string) {
+  async delete(id: string) {
     const client = await this.prisma.client.findFirst({
-      where: { id, userId, deletedAt: null },
+      where: { id, deletedAt: null },
     })
 
     if (!client) {

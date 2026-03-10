@@ -15,42 +15,42 @@ export class AnalysesTrpc {
     this.router = this.trpc.router({
       list: this.trpc.protectedProcedure
         .input(z.object({ clientId: z.string().cuid() }))
-        .query(async ({ input, ctx }) => {
-          return this.analysesService.findAll(input.clientId, ctx.user!.userId)
+        .query(async ({ input }) => {
+          return this.analysesService.findAll(input.clientId)
         }),
 
       getById: this.trpc.protectedProcedure
         .input(z.object({ id: z.string().cuid() }))
-        .query(async ({ input, ctx }) => {
-          return this.analysesService.findById(input.id, ctx.user!.userId)
+        .query(async ({ input }) => {
+          return this.analysesService.findById(input.id)
         }),
 
       create: this.trpc.protectedProcedure
         .input(CreateAnalysisSchema)
-        .mutation(async ({ input, ctx }) => {
-          return this.analysesService.create(ctx.user!.userId, input)
+        .mutation(async ({ input }) => {
+          return this.analysesService.create(input)
         }),
 
       update: this.trpc.protectedProcedure
         .input(z.object({ id: z.string().cuid(), data: UpdateAnalysisSchema }))
-        .mutation(async ({ input, ctx }) => {
-          return this.analysesService.update(input.id, ctx.user!.userId, input.data)
+        .mutation(async ({ input }) => {
+          return this.analysesService.update(input.id, input.data)
         }),
 
       delete: this.trpc.protectedProcedure
         .input(z.object({ id: z.string().cuid() }))
-        .mutation(async ({ input, ctx }) => {
-          return this.analysesService.delete(input.id, ctx.user!.userId)
+        .mutation(async ({ input }) => {
+          return this.analysesService.delete(input.id)
         }),
 
       getStats: this.trpc.protectedProcedure
         .input(z.object({ id: z.string().cuid() }))
-        .query(async ({ input, ctx }) => {
-          return this.analysesService.getStats(input.id, ctx.user!.userId)
+        .query(async ({ input }) => {
+          return this.analysesService.getStats(input.id)
         }),
 
-      getDashboardStats: this.trpc.protectedProcedure.query(async ({ ctx }) => {
-        return this.analysesService.getDashboardStats(ctx.user!.userId)
+      getDashboardStats: this.trpc.protectedProcedure.query(async () => {
+        return this.analysesService.getDashboardStats()
       }),
     })
   }

@@ -23,8 +23,8 @@ export class InvoiceLinesTrpc {
 
       listByAnalysis: this.trpc.protectedProcedure
         .input(z.object({ analysisId: z.string().cuid() }))
-        .query(async ({ input, ctx }) => {
-          await this.analysesService.verifyAccess(input.analysisId, ctx.user!.userId)
+        .query(async ({ input }) => {
+          await this.analysesService.verifyAccess(input.analysisId)
           return this.invoiceLinesService.findByAnalysis(input.analysisId)
         }),
 
@@ -42,8 +42,8 @@ export class InvoiceLinesTrpc {
 
       matchAll: this.trpc.protectedProcedure
         .input(z.object({ analysisId: z.string().cuid() }))
-        .mutation(async ({ input, ctx }) => {
-          await this.analysesService.verifyAccess(input.analysisId, ctx.user!.userId)
+        .mutation(async ({ input }) => {
+          await this.analysesService.verifyAccess(input.analysisId)
           return this.invoiceLinesService.matchAllInAnalysis(input.analysisId)
         }),
 

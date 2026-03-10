@@ -43,15 +43,16 @@ describe('EditableText', () => {
     expect(editButton).toBeInTheDocument()
   })
 
-  it('opens the dialog when clicking the edit button', async () => {
+  it('enters edit mode when clicking the edit button', async () => {
     const user = userEvent.setup()
     render(<EditableText {...defaultProps} />)
 
     const editButton = screen.getByRole('button', { name: /modifier/i })
     await user.click(editButton)
 
-    expect(screen.getByText('Modifier le texte')).toBeInTheDocument()
     expect(screen.getByTestId('editable-text-input')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /sauvegarder/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /annuler/i })).toBeInTheDocument()
   })
 
   it('pre-fills the input with the current text when opening the dialog', async () => {
@@ -111,19 +112,20 @@ describe('EditableText', () => {
     expect(onSave).toHaveBeenCalledWith('test.section', 'Default text')
   })
 
-  it('closes the dialog when clicking cancel', async () => {
+  it('exits edit mode when clicking cancel', async () => {
     const user = userEvent.setup()
     render(<EditableText {...defaultProps} />)
 
     const editButton = screen.getByRole('button', { name: /modifier/i })
     await user.click(editButton)
 
-    expect(screen.getByText('Modifier le texte')).toBeInTheDocument()
+    expect(screen.getByTestId('editable-text-input')).toBeInTheDocument()
 
     const cancelButton = screen.getByRole('button', { name: /annuler/i })
     await user.click(cancelButton)
 
-    expect(screen.queryByText('Modifier le texte')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('editable-text-input')).not.toBeInTheDocument()
+    expect(screen.getByText('Default text')).toBeInTheDocument()
   })
 
   it('renders a textarea when multiline is true', async () => {
