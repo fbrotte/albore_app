@@ -43,12 +43,25 @@ jobs:
           docker push ${{ env.REGISTRY }}/${{ env.ORG }}/${{ env.REPO }}-web:latest
           echo "✅ Web image pushed"
 
+      - name: Start database services
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: |
+          docker compose -f docker-compose.prod.yml up -d postgres redis
+          echo "Waiting for postgres to be healthy..."
+          for i in {1..30}; do
+            if docker compose -f docker-compose.prod.yml exec -T postgres pg_isready -U postgres > /dev/null 2>&1; then
+              echo "✅ Postgres ready"
+              break
+            fi
+            sleep 2
+          done
+
       - name: Run database migrations
         working-directory: ${{ env.PROJECT_DIR }}
         run: |
           docker run --rm \
             --env-file .env.prod \
-            --network albore-app_app \
+            --network albore_app_app \
             ${{ env.REGISTRY }}/${{ env.ORG }}/${{ env.REPO }}-api:latest \
             npx prisma migrate deploy
           echo "✅ Migrations applied"
@@ -56,9 +69,8 @@ jobs:
       - name: Deploy with Docker Compose
         working-directory: ${{ env.PROJECT_DIR }}
         run: |
-          docker compose -f docker-compose.prod.yml pull
           docker compose -f docker-compose.prod.yml up -d
-          echo "✅ Containers started"
+          echo "✅ All containers started"
 
       - name: Health check
         run: |
