@@ -19,6 +19,7 @@ import { LoggerModule } from '../logger/logger.module'
           connection: {
             host: url.hostname,
             port: parseInt(url.port) || 6379,
+            password: url.password || undefined,
           },
         }
       },
