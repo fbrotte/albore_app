@@ -50,9 +50,9 @@ const TAB_CONFIG: Record<TabType, TabConfig> = {
     label: 'Post consolide',
     icon: Layers,
     getStatus: (s) => {
+      if (s.summaryCount > 0) return 'completed'
       if (s.matchedCount === 0) return 'pending'
-      if (s.summaryCount === 0) return 'current'
-      return 'completed'
+      return 'current'
     },
     getCount: (s) => (s.summaryCount > 0 ? `${s.summaryCount}` : null),
   },
@@ -116,7 +116,8 @@ export default function AnalysisPage() {
     () => ({
       invoiceCount: analysis?.invoices?.length ?? 0,
       lineCount: stats?.lineCount ?? 0,
-      matchedCount: (stats?.autoMatchedCount ?? 0) + (stats?.confirmedCount ?? 0),
+      matchedCount:
+        (stats?.autoMatchedCount ?? 0) + (stats?.confirmedCount ?? 0) + (stats?.manualCount ?? 0),
       pendingCount: stats?.pendingCount ?? 0,
       summaryCount: stats?.summaryCount ?? 0,
     }),
