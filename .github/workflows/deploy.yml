@@ -1,14 +1,3 @@
-# =============================================================================
-# GitHub Actions - Deploy to Production
-# Runs on self-hosted runner installed on the production server
-# Uses PM2 + Bun (no Docker build to save RAM)
-#
-# Prerequisites:
-#   1. Self-hosted runner installed on your server
-#   2. .env file on the server with production secrets
-#   3. PM2 already configured with albore-api app
-# =============================================================================
-
 name: Deploy Production
 
 on:
@@ -17,91 +6,85 @@ on:
   workflow_dispatch:
 
 env:
+  REGISTRY: ghcr.io
+  ORG: fbrotte
+  REPO: albore_app
   PROJECT_DIR: /home/ubuntu/albore_app
-
-defaults:
-  run:
-    working-directory: /home/ubuntu/albore_app
 
 jobs:
   deploy:
     runs-on: [self-hosted, albore-prod]
 
     steps:
+      - name: Login to GHCR
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
       - name: Pull latest code
+        working-directory: ${{ env.PROJECT_DIR }}
         run: |
           git fetch origin main --tags
           git reset --hard origin/main
-          echo "✅ Code updated"
 
-      - name: Install dependencies
+      - name: Build and push API image
+        working-directory: ${{ env.PROJECT_DIR }}
         run: |
-          export BUN_INSTALL="$HOME/.bun"
-          export PATH="$BUN_INSTALL/bin:$PATH"
-          bun install
-          echo "✅ Dependencies installed"
+          docker build -f Dockerfile.api -t ${{ env.REGISTRY }}/${{ env.ORG }}/${{ env.REPO }}-api:latest .
+          docker push ${{ env.REGISTRY }}/${{ env.ORG }}/${{ env.REPO }}-api:latest
+          echo "✅ API image pushed"
 
-      - name: Generate Prisma client
+      - name: Build and push Web image
+        working-directory: ${{ env.PROJECT_DIR }}
         run: |
-          export BUN_INSTALL="$HOME/.bun"
-          export PATH="$BUN_INSTALL/bin:$PATH"
-          bunx prisma generate
-          echo "✅ Prisma client generated"
-
-      - name: Build API
-        run: |
-          export BUN_INSTALL="$HOME/.bun"
-          export PATH="$BUN_INSTALL/bin:$PATH"
-          cd apps/api && bun run build
-          echo "✅ API built"
-
-      - name: Build Web
-        run: |
-          export BUN_INSTALL="$HOME/.bun"
-          export PATH="$BUN_INSTALL/bin:$PATH"
-          cd apps/web && bun run build
-          echo "✅ Web built"
+          docker build -f Dockerfile.web -t ${{ env.REGISTRY }}/${{ env.ORG }}/${{ env.REPO }}-web:latest .
+          docker push ${{ env.REGISTRY }}/${{ env.ORG }}/${{ env.REPO }}-web:latest
+          echo "✅ Web image pushed"
 
       - name: Run database migrations
+        working-directory: ${{ env.PROJECT_DIR }}
         run: |
-          export BUN_INSTALL="$HOME/.bun"
-          export PATH="$BUN_INSTALL/bin:$PATH"
-          bunx prisma migrate deploy
+          docker run --rm \
+            --env-file .env.prod \
+            --network albore-app_app \
+            ${{ env.REGISTRY }}/${{ env.ORG }}/${{ env.REPO }}-api:latest \
+            npx prisma migrate deploy
           echo "✅ Migrations applied"
 
-      - name: Restart PM2
+      - name: Deploy with Docker Compose
+        working-directory: ${{ env.PROJECT_DIR }}
         run: |
-          pm2 restart albore-api
-          sleep 5
-          pm2 status
-          echo "✅ PM2 restarted"
+          docker compose -f docker-compose.prod.yml pull
+          docker compose -f docker-compose.prod.yml up -d
+          echo "✅ Containers started"
 
       - name: Health check
         run: |
-          for i in {1..12}; do
-            if curl -sf http://localhost:8012/api/health > /dev/null 2>&1; then
+          for i in {1..24}; do
+            if curl -sf http://localhost/api/health > /dev/null 2>&1; then
               echo "✅ Health check passed!"
               exit 0
             fi
-            echo "Attempt $i/12 - waiting 5s..."
+            echo "Attempt $i/24 - waiting 5s..."
             sleep 5
           done
           echo "❌ Health check failed"
-          pm2 logs albore-api --lines 30 --nostream
+          docker compose -f ${{ env.PROJECT_DIR }}/docker-compose.prod.yml logs api --tail 30
           exit 1
 
       - name: Create version tag
+        working-directory: ${{ env.PROJECT_DIR }}
         run: |
           LATEST_TAG=$(git tag -l 'v*' --sort=-version:refname | head -1)
           LATEST_TAG=${LATEST_TAG:-v0.0.0}
-
           VERSION=${LATEST_TAG#v}
           IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION"
           NEW_TAG="v${MAJOR}.${MINOR}.$((PATCH + 1))"
-
           git config user.name "GitHub Actions"
           git config user.email "actions@github.com"
           git tag -a "$NEW_TAG" -m "Auto-release after deploy to production"
           git push origin "$NEW_TAG" || echo "Warning: Could not push tag"
-
           echo "✅ Tagged: $NEW_TAG"
+
+      - name: Cleanup old images
+        run: |
+          docker image prune -f
+          echo "✅ Old images cleaned"

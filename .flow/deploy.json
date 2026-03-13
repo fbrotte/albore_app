@@ -1,0 +1,32 @@
+{
+  "ssh": {
+    "host": "albore-prod",
+    "user": "ubuntu",
+    "project_dir": "/home/ubuntu/albore_app"
+  },
+  "registry": {
+    "provider": "ghcr",
+    "org": "fbrotte",
+    "images": ["api", "web"]
+  },
+  "deploy": {
+    "runner_label": "albore-prod",
+    "compose_file": "docker-compose.prod.yml",
+    "env_file": ".env.prod"
+  },
+  "caddy": {
+    "mode": "standalone",
+    "domains": ["opti.alboregroup.com"],
+    "container_prefix": "albore-app"
+  },
+  "postgres": {
+    "password": "mBMH4x5vVAYIELRV03XfFMkc3Ej1d5M5"
+  },
+  "redis": {
+    "password": "0d4f28bbace1be39a1201e6094a6134a"
+  },
+  "health_check": {
+    "url": "/api/health",
+    "timeout": 120
+  }
+}
