@@ -30,8 +30,9 @@ WORKDIR /app
 RUN apk add --no-cache openssl
 COPY --from=build /app/apps/api/dist ./dist
 COPY --from=prod-deps /app/node_modules ./node_modules
-COPY --from=build /app/packages/shared/dist ./packages/shared/dist
-COPY --from=build /app/packages/shared/package.json ./packages/shared/
+COPY --from=build /app/packages/shared/dist ./node_modules/@template-dev/shared/dist
+COPY --from=build /app/packages/shared/package.json ./node_modules/@template-dev/shared/package.json
+RUN node -e "const p=JSON.parse(require('fs').readFileSync('node_modules/@template-dev/shared/package.json'));p.main='./dist/index.js';require('fs').writeFileSync('node_modules/@template-dev/shared/package.json',JSON.stringify(p,null,2))"
 COPY --from=build /app/prisma ./prisma
 COPY --from=build /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=build /app/node_modules/@prisma ./node_modules/@prisma
