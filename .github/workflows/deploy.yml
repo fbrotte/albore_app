@@ -11,6 +11,10 @@ env:
   REPO: albore_app
   PROJECT_DIR: /home/ubuntu/albore_app
 
+permissions:
+  contents: write
+  packages: write
+
 jobs:
   deploy:
     runs-on: [self-hosted, albore-prod]
