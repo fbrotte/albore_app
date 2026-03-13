@@ -46,10 +46,10 @@ jobs:
       - name: Start database services
         working-directory: ${{ env.PROJECT_DIR }}
         run: |
-          docker compose -f docker-compose.prod.yml up -d postgres redis
+          docker compose --env-file .env.prod -f docker-compose.prod.yml up -d postgres redis
           echo "Waiting for postgres to be healthy..."
           for i in {1..30}; do
-            if docker compose -f docker-compose.prod.yml exec -T postgres pg_isready -U postgres > /dev/null 2>&1; then
+            if docker compose --env-file .env.prod -f docker-compose.prod.yml exec -T postgres pg_isready -U postgres > /dev/null 2>&1; then
               echo "✅ Postgres ready"
               break
             fi
@@ -69,7 +69,7 @@ jobs:
       - name: Deploy with Docker Compose
         working-directory: ${{ env.PROJECT_DIR }}
         run: |
-          docker compose -f docker-compose.prod.yml up -d
+          docker compose --env-file .env.prod -f docker-compose.prod.yml up -d
           echo "✅ All containers started"
 
       - name: Health check
