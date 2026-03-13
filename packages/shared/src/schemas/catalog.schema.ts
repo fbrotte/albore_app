@@ -11,6 +11,9 @@ export type PricingType = z.infer<typeof PricingTypeSchema>
 export const BillingTypeSchema = z.enum(['RECURRING', 'ONE_TIME', 'USAGE'])
 export type BillingType = z.infer<typeof BillingTypeSchema>
 
+export const ProposalGroupSchema = z.enum(['TELECOM', 'IT', 'PRINTING'])
+export type ProposalGroup = z.infer<typeof ProposalGroupSchema>
+
 // === CATEGORY ===
 
 export const CategorySchema = z.object({
@@ -18,6 +21,7 @@ export const CategorySchema = z.object({
   name: z.string(),
   description: z.string().nullable(),
   icon: z.string().nullable(),
+  proposalGroup: ProposalGroupSchema,
   displayOrder: z.number().int(),
   createdAt: z.date(),
   updatedAt: z.date(),
