@@ -6,52 +6,31 @@ const prisma = new PrismaClient()
 const catalogData = {
   categories: [
     {
-      name: 'Téléphonie Mobile',
-      description: 'Forfaits et services de téléphonie mobile',
-      icon: 'smartphone',
+      name: 'Téléphonie',
+      description: 'Forfaits mobiles, lignes fixes, internet, réseaux',
+      icon: 'phone',
+      proposalGroup: 'TELECOM' as const,
       displayOrder: 1,
     },
     {
-      name: 'Téléphonie Fixe',
-      description: 'Lignes fixes et standards téléphoniques',
-      icon: 'phone',
-      displayOrder: 2,
-    },
-    {
-      name: 'Internet & Réseau',
-      description: 'Connexions internet et services réseau',
-      icon: 'wifi',
-      displayOrder: 3,
-    },
-    {
-      name: 'Cloud & Hébergement',
-      description: 'Services cloud et hébergement de serveurs',
-      icon: 'cloud',
-      displayOrder: 4,
-    },
-    {
-      name: 'Logiciels & Licences',
-      description: 'Licences logicielles et abonnements SaaS',
-      icon: 'package',
-      displayOrder: 5,
-    },
-    {
-      name: 'Matériel',
-      description: 'Équipements et matériel informatique',
+      name: 'Informatique',
+      description: 'Cloud, hébergement, logiciels, licences, matériel',
       icon: 'monitor',
-      displayOrder: 6,
+      proposalGroup: 'IT' as const,
+      displayOrder: 2,
     },
     {
       name: 'Impression',
       description: "Solutions d'impression et de reprographie",
       icon: 'printer',
-      displayOrder: 7,
+      proposalGroup: 'PRINTING' as const,
+      displayOrder: 3,
     },
   ],
   services: [
-    // Téléphonie Mobile
+    // Téléphonie
     {
-      category: 'Téléphonie Mobile',
+      category: 'Téléphonie',
       name: 'Forfait Mobile Entreprise',
       semanticDescription:
         'Forfait téléphonie mobile professionnel avec appels illimités, SMS/MMS illimités et data 4G/5G. Inclut roaming Europe et options professionnelles.',
@@ -62,7 +41,7 @@ const catalogData = {
       billingType: 'RECURRING' as const,
     },
     {
-      category: 'Téléphonie Mobile',
+      category: 'Téléphonie',
       name: 'Forfait Mobile Data Only',
       semanticDescription:
         'Forfait data uniquement pour tablettes et objets connectés. Carte SIM data 4G/5G sans voix ni SMS.',
@@ -73,7 +52,7 @@ const catalogData = {
       billingType: 'RECURRING' as const,
     },
     {
-      category: 'Téléphonie Mobile',
+      category: 'Téléphonie',
       name: 'Option Internationale',
       semanticDescription:
         'Option roaming international hors Europe. Appels et data depuis étranger, zone internationale, voyage professionnel.',
@@ -83,9 +62,8 @@ const catalogData = {
       basePrice: 10.0,
       billingType: 'RECURRING' as const,
     },
-    // Téléphonie Fixe
     {
-      category: 'Téléphonie Fixe',
+      category: 'Téléphonie',
       name: 'Ligne Fixe Analogique',
       semanticDescription:
         'Ligne téléphonique fixe analogique classique RTC. Abonnement ligne fixe traditionnelle avec numéro géographique.',
@@ -96,7 +74,7 @@ const catalogData = {
       billingType: 'RECURRING' as const,
     },
     {
-      category: 'Téléphonie Fixe',
+      category: 'Téléphonie',
       name: 'Trunk SIP',
       semanticDescription:
         'Trunk SIP pour IPBX et standard téléphonique IP. Canaux voix simultanés, numéros SDA, portabilité.',
@@ -107,7 +85,7 @@ const catalogData = {
       billingType: 'RECURRING' as const,
     },
     {
-      category: 'Téléphonie Fixe',
+      category: 'Téléphonie',
       name: 'Standard Téléphonique Cloud',
       semanticDescription:
         'Standard téléphonique hébergé dans le cloud. IPBX cloud, Centrex IP, téléphonie cloud entreprise avec fonctions avancées.',
@@ -117,9 +95,8 @@ const catalogData = {
       basePrice: 12.0,
       billingType: 'RECURRING' as const,
     },
-    // Internet & Réseau
     {
-      category: 'Internet & Réseau',
+      category: 'Téléphonie',
       name: 'Fibre Optique Entreprise',
       semanticDescription:
         'Accès internet fibre optique professionnelle FTTH/FTTO. Connexion haut débit symétrique avec GTR et IP fixe.',
@@ -130,7 +107,7 @@ const catalogData = {
       billingType: 'RECURRING' as const,
     },
     {
-      category: 'Internet & Réseau',
+      category: 'Téléphonie',
       name: 'SDSL',
       semanticDescription:
         'Liaison SDSL symétrique dédiée. Accès internet garanti avec débit symétrique et SLA professionnel.',
@@ -141,7 +118,7 @@ const catalogData = {
       billingType: 'RECURRING' as const,
     },
     {
-      category: 'Internet & Réseau',
+      category: 'Téléphonie',
       name: 'VPN MPLS',
       semanticDescription:
         'Réseau privé virtuel MPLS multi-sites. Interconnexion de sites, réseau privé entreprise, VPN managé.',
@@ -152,7 +129,7 @@ const catalogData = {
       billingType: 'RECURRING' as const,
     },
     {
-      category: 'Internet & Réseau',
+      category: 'Téléphonie',
       name: 'SD-WAN',
       semanticDescription:
         'Solution SD-WAN pour réseau étendu. Routage intelligent, agrégation de liens, overlay réseau software-defined.',
@@ -162,9 +139,9 @@ const catalogData = {
       basePrice: 150.0,
       billingType: 'RECURRING' as const,
     },
-    // Cloud & Hébergement
+    // Informatique
     {
-      category: 'Cloud & Hébergement',
+      category: 'Informatique',
       name: 'Serveur Virtuel VPS',
       semanticDescription:
         'Serveur virtuel privé VPS cloud. Machine virtuelle hébergée avec CPU, RAM et stockage SSD dédiés.',
@@ -175,7 +152,7 @@ const catalogData = {
       billingType: 'RECURRING' as const,
     },
     {
-      category: 'Cloud & Hébergement',
+      category: 'Informatique',
       name: 'Serveur Dédié',
       semanticDescription:
         'Serveur physique dédié en datacenter. Bare metal server avec ressources exclusives et administration root.',
@@ -186,7 +163,7 @@ const catalogData = {
       billingType: 'RECURRING' as const,
     },
     {
-      category: 'Cloud & Hébergement',
+      category: 'Informatique',
       name: 'Stockage Cloud',
       semanticDescription:
         'Stockage objet cloud S3 compatible. Espace de stockage en ligne, backup cloud, archivage données.',
@@ -197,7 +174,7 @@ const catalogData = {
       billingType: 'USAGE' as const,
     },
     {
-      category: 'Cloud & Hébergement',
+      category: 'Informatique',
       name: 'Sauvegarde Cloud',
       semanticDescription:
         'Service de sauvegarde externalisée cloud. Backup automatique, rétention, restauration, plan de reprise.',
@@ -207,9 +184,8 @@ const catalogData = {
       basePrice: 0.05,
       billingType: 'RECURRING' as const,
     },
-    // Logiciels & Licences
     {
-      category: 'Logiciels & Licences',
+      category: 'Informatique',
       name: 'Microsoft 365 Business',
       semanticDescription:
         'Licence Microsoft 365 Business. Suite Office cloud avec Exchange, Teams, SharePoint, OneDrive. Abonnement Microsoft Office 365.',
@@ -220,7 +196,7 @@ const catalogData = {
       billingType: 'RECURRING' as const,
     },
     {
-      category: 'Logiciels & Licences',
+      category: 'Informatique',
       name: 'Google Workspace',
       semanticDescription:
         'Licence Google Workspace entreprise. Gmail professionnel, Drive, Meet, Docs, Sheets. G Suite business.',
@@ -231,7 +207,7 @@ const catalogData = {
       billingType: 'RECURRING' as const,
     },
     {
-      category: 'Logiciels & Licences',
+      category: 'Informatique',
       name: 'Antivirus Endpoint',
       semanticDescription:
         'Protection antivirus et endpoint security. Sécurité poste de travail, anti-malware, EDR, protection endpoint.',
@@ -242,7 +218,7 @@ const catalogData = {
       billingType: 'RECURRING' as const,
     },
     {
-      category: 'Logiciels & Licences',
+      category: 'Informatique',
       name: 'Visioconférence Pro',
       semanticDescription:
         'Solution de visioconférence professionnelle. Réunions vidéo, webinars, collaboration à distance. Zoom, Teams, Webex.',
@@ -252,9 +228,8 @@ const catalogData = {
       basePrice: 15.0,
       billingType: 'RECURRING' as const,
     },
-    // Matériel
     {
-      category: 'Matériel',
+      category: 'Informatique',
       name: 'Téléphone IP',
       semanticDescription:
         'Téléphone IP de bureau fixe. Poste téléphonique SIP, téléphone VoIP professionnel avec écran et touches programmables.',
@@ -265,7 +240,7 @@ const catalogData = {
       billingType: 'ONE_TIME' as const,
     },
     {
-      category: 'Matériel',
+      category: 'Informatique',
       name: 'Routeur Entreprise',
       semanticDescription:
         'Routeur professionnel entreprise. Équipement réseau, firewall intégré, routeur managé avec support.',
@@ -276,7 +251,7 @@ const catalogData = {
       billingType: 'ONE_TIME' as const,
     },
     {
-      category: 'Matériel',
+      category: 'Informatique',
       name: 'Switch Réseau',
       semanticDescription:
         'Switch réseau Ethernet managé. Commutateur réseau PoE, switch gigabit pour infrastructure LAN.',
@@ -287,7 +262,7 @@ const catalogData = {
       billingType: 'ONE_TIME' as const,
     },
     {
-      category: 'Matériel',
+      category: 'Informatique',
       name: 'Borne WiFi',
       semanticDescription:
         'Point accès WiFi professionnel. Borne WiFi entreprise, access point sans fil, couverture wireless.',

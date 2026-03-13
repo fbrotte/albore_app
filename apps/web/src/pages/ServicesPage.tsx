@@ -6,7 +6,6 @@ import {
   Pencil,
   Trash2,
   FolderOpen,
-  FolderPlus,
   ChevronRight,
   ChevronDown,
 } from 'lucide-react'
@@ -18,8 +17,6 @@ import { AppLayout } from '@/components/layout/AppLayout'
 import { trpc } from '@/lib/trpc'
 import { ServiceFormDialog } from '@/components/services/ServiceFormDialog'
 import { DeleteServiceDialog } from '@/components/services/DeleteServiceDialog'
-import { CategoryFormDialog } from '@/components/services/CategoryFormDialog'
-import { DeleteCategoryDialog } from '@/components/services/DeleteCategoryDialog'
 
 type ServiceWithCategory = {
   id: string
@@ -35,25 +32,12 @@ type ServiceWithCategory = {
   category: { id: string; name: string } | null
 }
 
-type CategoryData = {
-  id: string
-  name: string
-  description: string | null
-  icon: string | null
-  displayOrder: number
-}
-
 export default function ServicesPage() {
   const [search, setSearch] = useState('')
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set())
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
   const [editingService, setEditingService] = useState<ServiceWithCategory | null>(null)
   const [deletingService, setDeletingService] = useState<ServiceWithCategory | null>(null)
-
-  // Category state
-  const [isCreateCategoryDialogOpen, setIsCreateCategoryDialogOpen] = useState(false)
-  const [editingCategory, setEditingCategory] = useState<CategoryData | null>(null)
-  const [deletingCategory, setDeletingCategory] = useState<CategoryData | null>(null)
 
   const {
     data: categories,
@@ -128,22 +112,6 @@ export default function ServicesPage() {
     refetch()
   }
 
-  // Category handlers
-  const handleCreateCategorySuccess = () => {
-    setIsCreateCategoryDialogOpen(false)
-    refetch()
-  }
-
-  const handleEditCategorySuccess = () => {
-    setEditingCategory(null)
-    refetch()
-  }
-
-  const handleDeleteCategorySuccess = () => {
-    setDeletingCategory(null)
-    refetch()
-  }
-
   const getFilteredServices = (categoryId: string) => {
     const categoryServices = servicesByCategory?.[categoryId] || []
     if (!search) return categoryServices
@@ -182,16 +150,10 @@ export default function ServicesPage() {
             <h1 className="text-3xl font-bold">Catalogue de services</h1>
             <p className="text-muted-foreground">Gerez vos services et leurs tarifications</p>
           </div>
-          <div className="flex items-center space-x-2">
-            <Button variant="outline" onClick={() => setIsCreateCategoryDialogOpen(true)}>
-              <FolderPlus className="mr-2 h-4 w-4" />
-              Nouvelle categorie
-            </Button>
-            <Button onClick={() => setIsCreateDialogOpen(true)}>
-              <Plus className="mr-2 h-4 w-4" />
-              Nouveau service
-            </Button>
-          </div>
+          <Button onClick={() => setIsCreateDialogOpen(true)}>
+            <Plus className="mr-2 h-4 w-4" />
+            Nouveau service
+          </Button>
         </div>
 
         {/* Search */}
@@ -248,29 +210,7 @@ export default function ServicesPage() {
                           )}
                         </div>
                       </div>
-                      <div className="flex items-center space-x-2">
-                        <Badge variant="secondary">{categoryServices.length} services</Badge>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            setEditingCategory(category as CategoryData)
-                          }}
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            setDeletingCategory(category as CategoryData)
-                          }}
-                        >
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
-                      </div>
+                      <Badge variant="secondary">{categoryServices.length} services</Badge>
                     </div>
                   </CardHeader>
 
@@ -392,34 +332,6 @@ export default function ServicesPage() {
           onOpenChange={(open) => !open && setDeletingService(null)}
           onSuccess={handleDeleteSuccess}
           service={deletingService}
-        />
-      )}
-
-      {/* Category Create Dialog */}
-      <CategoryFormDialog
-        open={isCreateCategoryDialogOpen}
-        onOpenChange={setIsCreateCategoryDialogOpen}
-        onSuccess={handleCreateCategorySuccess}
-      />
-
-      {/* Category Edit Dialog */}
-      {editingCategory && (
-        <CategoryFormDialog
-          open={!!editingCategory}
-          onOpenChange={(open) => !open && setEditingCategory(null)}
-          onSuccess={handleEditCategorySuccess}
-          category={editingCategory}
-        />
-      )}
-
-      {/* Category Delete Dialog */}
-      {deletingCategory && (
-        <DeleteCategoryDialog
-          open={!!deletingCategory}
-          onOpenChange={(open) => !open && setDeletingCategory(null)}
-          onSuccess={handleDeleteCategorySuccess}
-          category={deletingCategory}
-          serviceCount={servicesByCategory?.[deletingCategory.id]?.length || 0}
         />
       )}
     </AppLayout>

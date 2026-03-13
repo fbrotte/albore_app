@@ -6,12 +6,8 @@ import type { ProposalData, CategoryGroup, ServiceSummary, ProposalTotals } from
 
 // Fallback mapping for categories without proposalGroup set
 const CATEGORY_GROUP_FALLBACK: Record<string, CategoryGroup['slug']> = {
-  'Téléphonie Mobile': 'telecom',
-  'Téléphonie Fixe': 'telecom',
-  'Internet & Réseau': 'telecom',
-  'Cloud & Hébergement': 'it',
-  'Logiciels & Licences': 'it',
-  Matériel: 'it',
+  Téléphonie: 'telecom',
+  Informatique: 'it',
   Impression: 'printing',
 }
 
@@ -36,9 +32,9 @@ export function useProposalData(analysisId: string | undefined) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     for (const s of summaries as any[]) {
       const currentMonthly = Number(s.avgMonthly) || 0
-      const proposedMonthly = s.ourPrice ? Number(s.ourPrice) : currentMonthly
       const savingAmount = Number(s.savingAmount) || 0
       const savingPercent = Number(s.savingPercent) || 0
+      const proposedMonthly = currentMonthly - savingAmount
 
       const serviceSummary: ServiceSummary = {
         id: s.id,

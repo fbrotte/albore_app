@@ -84,52 +84,25 @@ async function main() {
     },
   })
 
-  // ==================== CATEGORIES ====================
+  // ==================== CATEGORIES (3 catégories fixes) ====================
   console.log('📁 Creating categories...')
   const categories = await Promise.all([
     prisma.category.create({
       data: {
-        name: 'Téléphonie Mobile',
-        description: 'Forfaits mobiles, cartes SIM, options',
-        icon: '📱',
+        name: 'Téléphonie',
+        description: 'Forfaits mobiles, lignes fixes, internet, réseaux',
+        icon: '📡',
         proposalGroup: 'TELECOM',
         displayOrder: 1,
       },
     }),
     prisma.category.create({
       data: {
-        name: 'Téléphonie Fixe',
-        description: 'Lignes fixes, standards téléphoniques',
-        icon: '☎️',
-        proposalGroup: 'TELECOM',
+        name: 'Informatique',
+        description: 'Cloud, hébergement, logiciels, licences, matériel',
+        icon: '💻',
+        proposalGroup: 'IT',
         displayOrder: 2,
-      },
-    }),
-    prisma.category.create({
-      data: {
-        name: 'Internet & Réseau',
-        description: 'Connexions internet, VPN, SD-WAN',
-        icon: '🌐',
-        proposalGroup: 'TELECOM',
-        displayOrder: 3,
-      },
-    }),
-    prisma.category.create({
-      data: {
-        name: 'Cloud & Hébergement',
-        description: 'Serveurs, stockage cloud, backup',
-        icon: '☁️',
-        proposalGroup: 'IT',
-        displayOrder: 4,
-      },
-    }),
-    prisma.category.create({
-      data: {
-        name: 'Logiciels & Licences',
-        description: 'Microsoft 365, antivirus, outils métier',
-        icon: '💿',
-        proposalGroup: 'IT',
-        displayOrder: 5,
       },
     }),
     prisma.category.create({
@@ -138,12 +111,12 @@ async function main() {
         description: 'Copieurs, imprimantes, consommables',
         icon: '🖨️',
         proposalGroup: 'PRINTING',
-        displayOrder: 6,
+        displayOrder: 3,
       },
     }),
   ])
 
-  const [catMobile, catFixe, catInternet, catCloud, catLogiciels, catImpression] = categories
+  const [catTelecom, catIT, catImpression] = categories
 
   // ==================== SERVICES ====================
   console.log('🛠️ Creating services...')
@@ -152,7 +125,7 @@ async function main() {
   const servicesMobile = await Promise.all([
     prisma.service.create({
       data: {
-        categoryId: catMobile.id,
+        categoryId: catTelecom.id,
         name: 'Forfait Mobile 1Go',
         semanticDescription: 'Forfait mobile avec appels, SMS, MMS illimités et 1Go de data',
         unitType: 'LINE',
@@ -164,7 +137,7 @@ async function main() {
     }),
     prisma.service.create({
       data: {
-        categoryId: catMobile.id,
+        categoryId: catTelecom.id,
         name: 'Forfait Mobile 10Go',
         semanticDescription: 'Forfait mobile avec appels, SMS, MMS illimités et 10Go de data',
         unitType: 'LINE',
@@ -176,7 +149,7 @@ async function main() {
     }),
     prisma.service.create({
       data: {
-        categoryId: catMobile.id,
+        categoryId: catTelecom.id,
         name: 'Forfait Mobile 30Go',
         semanticDescription: 'Forfait mobile avec appels, SMS, MMS illimités et 30Go de data',
         unitType: 'LINE',
@@ -188,7 +161,7 @@ async function main() {
     }),
     prisma.service.create({
       data: {
-        categoryId: catMobile.id,
+        categoryId: catTelecom.id,
         name: 'Forfait Mobile 60Go',
         semanticDescription: 'Forfait mobile avec appels, SMS, MMS illimités et 60Go de data',
         unitType: 'LINE',
@@ -200,7 +173,7 @@ async function main() {
     }),
     prisma.service.create({
       data: {
-        categoryId: catMobile.id,
+        categoryId: catTelecom.id,
         name: 'Forfait Mobile 100Go',
         semanticDescription: 'Forfait mobile avec appels, SMS, MMS illimités et 100Go de data',
         unitType: 'LINE',
@@ -212,7 +185,7 @@ async function main() {
     }),
     prisma.service.create({
       data: {
-        categoryId: catMobile.id,
+        categoryId: catTelecom.id,
         name: 'Option 5G',
         semanticDescription: 'Option 5G pour forfait mobile',
         unitType: 'LINE',
@@ -228,7 +201,7 @@ async function main() {
   const servicesFixe = await Promise.all([
     prisma.service.create({
       data: {
-        categoryId: catFixe.id,
+        categoryId: catTelecom.id,
         name: 'Ligne SIP Trunk',
         semanticDescription: 'Ligne téléphonique SIP pour standard téléphonique',
         unitType: 'LINE',
@@ -240,7 +213,7 @@ async function main() {
     }),
     prisma.service.create({
       data: {
-        categoryId: catFixe.id,
+        categoryId: catTelecom.id,
         name: 'Numéro géographique',
         semanticDescription: 'Numéro de téléphone fixe géographique (01, 02, 03, 04, 05)',
         unitType: 'UNIT',
@@ -252,7 +225,7 @@ async function main() {
     }),
     prisma.service.create({
       data: {
-        categoryId: catFixe.id,
+        categoryId: catTelecom.id,
         name: 'Standard téléphonique cloud',
         semanticDescription: 'IPBX cloud avec fonctionnalités avancées',
         unitType: 'USER',
@@ -268,7 +241,7 @@ async function main() {
   const servicesInternet = await Promise.all([
     prisma.service.create({
       data: {
-        categoryId: catInternet.id,
+        categoryId: catTelecom.id,
         name: 'Fibre Entreprise 100Mb',
         semanticDescription: 'Connexion fibre optique entreprise 100Mb symétrique avec GTR 4h',
         unitType: 'UNIT',
@@ -280,7 +253,7 @@ async function main() {
     }),
     prisma.service.create({
       data: {
-        categoryId: catInternet.id,
+        categoryId: catTelecom.id,
         name: 'Fibre Entreprise 500Mb',
         semanticDescription: 'Connexion fibre optique entreprise 500Mb symétrique avec GTR 4h',
         unitType: 'UNIT',
@@ -292,7 +265,7 @@ async function main() {
     }),
     prisma.service.create({
       data: {
-        categoryId: catInternet.id,
+        categoryId: catTelecom.id,
         name: 'Fibre Entreprise 1Gb',
         semanticDescription: 'Connexion fibre optique entreprise 1Gb symétrique avec GTR 4h',
         unitType: 'UNIT',
@@ -304,7 +277,7 @@ async function main() {
     }),
     prisma.service.create({
       data: {
-        categoryId: catInternet.id,
+        categoryId: catTelecom.id,
         name: '4G/5G Backup 100Go',
         semanticDescription: 'Connexion 4G/5G de secours avec 100Go de data',
         unitType: 'UNIT',
@@ -320,7 +293,7 @@ async function main() {
   const servicesCloud = await Promise.all([
     prisma.service.create({
       data: {
-        categoryId: catCloud.id,
+        categoryId: catIT.id,
         name: 'Serveur Cloud Standard',
         semanticDescription: 'Machine virtuelle 2 vCPU, 4Go RAM, 100Go SSD',
         unitType: 'UNIT',
@@ -332,7 +305,7 @@ async function main() {
     }),
     prisma.service.create({
       data: {
-        categoryId: catCloud.id,
+        categoryId: catIT.id,
         name: 'VPS Performance 2 vCPU',
         semanticDescription:
           'VPS Performance serveur virtuel haute performance 2 vCPU, 4Go RAM, SSD NVMe',
@@ -345,7 +318,7 @@ async function main() {
     }),
     prisma.service.create({
       data: {
-        categoryId: catCloud.id,
+        categoryId: catIT.id,
         name: 'VPS Performance 4 vCPU',
         semanticDescription:
           'VPS Performance serveur virtuel haute performance 4 vCPU, 8Go RAM, SSD NVMe',
@@ -358,7 +331,7 @@ async function main() {
     }),
     prisma.service.create({
       data: {
-        categoryId: catCloud.id,
+        categoryId: catIT.id,
         name: 'VPS Performance 8 vCPU',
         semanticDescription:
           'VPS Performance serveur virtuel haute performance 8 vCPU, 16Go RAM, SSD NVMe',
@@ -371,7 +344,7 @@ async function main() {
     }),
     prisma.service.create({
       data: {
-        categoryId: catCloud.id,
+        categoryId: catIT.id,
         name: 'Stockage Cloud 1To',
         semanticDescription: 'Espace de stockage cloud sécurisé 1To',
         unitType: 'UNIT',
@@ -383,7 +356,7 @@ async function main() {
     }),
     prisma.service.create({
       data: {
-        categoryId: catCloud.id,
+        categoryId: catIT.id,
         name: 'Backup Cloud',
         semanticDescription: 'Sauvegarde automatisée vers le cloud',
         unitType: 'UNIT',
@@ -399,7 +372,7 @@ async function main() {
   const servicesLogiciels = await Promise.all([
     prisma.service.create({
       data: {
-        categoryId: catLogiciels.id,
+        categoryId: catIT.id,
         name: 'Microsoft 365 Business Basic',
         semanticDescription: 'Suite Microsoft 365 avec Exchange, Teams, SharePoint online',
         unitType: 'USER',
@@ -411,7 +384,7 @@ async function main() {
     }),
     prisma.service.create({
       data: {
-        categoryId: catLogiciels.id,
+        categoryId: catIT.id,
         name: 'Microsoft 365 Business Standard',
         semanticDescription: 'Suite Microsoft 365 complète avec applications desktop',
         unitType: 'USER',
@@ -423,7 +396,7 @@ async function main() {
     }),
     prisma.service.create({
       data: {
-        categoryId: catLogiciels.id,
+        categoryId: catIT.id,
         name: 'Antivirus Endpoint',
         semanticDescription: 'Protection antivirus et anti-malware pour poste de travail',
         unitType: 'DEVICE',
@@ -1225,7 +1198,7 @@ async function main() {
   console.log('')
   console.log('📝 Summary:')
   console.log('   - 1 user (demo@albore.fr / password123)')
-  console.log('   - 6 categories')
+  console.log('   - 3 categories')
   console.log(`   - ${allServices.length} services`)
   if (embeddingsGenerated > 0) {
     console.log(`   - ${embeddingsGenerated}/${allServices.length} embeddings generated`)
