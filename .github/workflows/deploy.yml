@@ -69,13 +69,13 @@ jobs:
       - name: Deploy with Docker Compose
         working-directory: ${{ env.PROJECT_DIR }}
         run: |
-          docker compose --env-file .env.prod -f docker-compose.prod.yml up -d
+          docker compose --env-file .env.prod -f docker-compose.prod.yml up -d --wait --wait-timeout 120
           echo "✅ All containers started"
 
       - name: Health check
         run: |
           for i in {1..24}; do
-            if curl -sf http://localhost/api/health > /dev/null 2>&1; then
+            if docker exec albore-app-api wget -qO- http://127.0.0.1:3000/api/health > /dev/null 2>&1; then
               echo "✅ Health check passed!"
               exit 0
             fi
@@ -83,7 +83,7 @@ jobs:
             sleep 5
           done
           echo "❌ Health check failed"
-          docker compose -f ${{ env.PROJECT_DIR }}/docker-compose.prod.yml logs api --tail 30
+          docker compose --env-file .env.prod -f ${{ env.PROJECT_DIR }}/docker-compose.prod.yml logs api --tail 30
           exit 1
 
       - name: Create version tag
