@@ -37,9 +37,10 @@ services:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/api/health || exit 1"]
-      interval: 30s
+      interval: 10s
       timeout: 10s
-      retries: 3
+      retries: 5
+      start_period: 30s
     networks:
       - app
 
@@ -56,9 +57,10 @@ services:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:80/health || exit 1"]
-      interval: 30s
+      interval: 10s
       timeout: 10s
       retries: 3
+      start_period: 10s
     networks:
       - app
 
